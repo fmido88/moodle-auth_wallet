@@ -70,6 +70,7 @@ class auth_plugin_wallet extends auth_plugin_base {
         if (!$validate) {
             return false;
         }
+
         return true;
     }
 
@@ -143,13 +144,18 @@ class auth_plugin_wallet extends auth_plugin_base {
         $user = get_complete_user_data('username', $username);
 
         if (!empty($user)) {
+            $paycofirm = get_user_preferences('auth_wallet_balanceconfirm');
+
             if ($user->auth != $this->authtype) {
                 return AUTH_CONFIRM_ERROR;
 
-            } else if ($user->secret === $confirmsecret && $user->confirmed) {
+            } else if ($user->secret === $confirmsecret && $user->confirmed && !empty($paycofirm)) {
                 return AUTH_CONFIRM_ALREADY;
 
             } else if ($user->secret === $confirmsecret) {   // They have provided the secret key to get in
+
+                $DB->set_field("user", "confirmed", 1, array("id"=>$user->id));
+
                 // Check if the user balance is sufficient.
                 $required = $this->config->required_balance;
                 $balance = transactions::get_user_balance($user->id);
@@ -159,7 +165,6 @@ class auth_plugin_wallet extends auth_plugin_base {
                 }
 
                 set_user_preference('auth_wallet_balanceconfirm', true, $user);
-                $DB->set_field("user", "confirmed", 1, array("id"=>$user->id));
 
                 if ($wantsurl = get_user_preferences('auth_wallet_wantsurl', false, $user)) {
                     // Ensure user gets returned to page they were trying to access before signing up.
@@ -185,10 +190,13 @@ class auth_plugin_wallet extends auth_plugin_base {
      * @param $password: plain text password (with system magic quotes)
      */
     public function user_authenticated_hook(&$user, $username, $password) {
-        if (empty($user->confirm) && $user->auth === 'wallet') {
+        $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', null, $user);
+
+        if ((empty($user->confirmed) || empty($payconfirm)) && $user->auth === 'wallet') {
             if (empty($this->config->emailconfirm)) {
                 $params = [
                     's' => $user->username,
+                    'p' => $user->secret,
                 ];
                 $confirmationurl = new \moodle_url('/auth/wallet/confirm.php', $params);
                 redirect($confirmationurl);

@@ -31,10 +31,16 @@ require_once($CFG->libdir.'/authlib.php');
  * @return void
  */
 function auth_wallet_after_require_login() {
-    global $USER, $PAGE, $OUTPUT, $CFG, $wallet;
+    global $USER, $CFG;
     require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
     // Disable redirection in case of another auth plugin.
     if ($USER->auth !== 'wallet' || !empty($wallet)) {
+        return;
+    }
+
+    // Check if first required payment already done.
+    $payconfirm = get_user_preferences('auth_wallet_balanceconfirm');
+    if (!empty($payconfirm) && !empty($USER->confirmed)) {
         return;
     }
 
@@ -43,29 +49,20 @@ function auth_wallet_after_require_login() {
     $component = optional_param('component', '', PARAM_RAW);
     $value = optional_param('value', '', PARAM_FLOAT);
     $coupon = optional_param('coupon', '', PARAM_TEXT);
+    $s = optional_param('s', '', PARAM_TEXT);
+    $l = optional_param('logout', '', PARAM_TEXT);
+
     // Disable redirection in case of payment process.
-    if (!empty($itemid) || !empty($paymentarea) || !empty($component) || !empty($value) || !empty($coupon)) {
-        return;
-    }
-
-    // Check if first required payment already done.
-    $payconfirm = get_user_preferences('auth_wallet_balanceconfirm');
-
-    if ($payconfirm && !empty($USER->confirmed)) {
-        return;
-    }
-
-    if (!empty($PAGE->url) && (
-        strpos('enrol/wallet/extra/topup.php', $PAGE->url) !== false
-        || strpos('auth/wallet/confirm.php', $PAGE->url) !== false
-        || strpos('payment/gateway', $PAGE->url) !== false
-        )) {
+    if (!empty($itemid) || !empty($paymentarea) || !empty($component) || !empty($value) || !empty($coupon) || !empty($s) || !empty($l)) {
         return;
     }
 
     $params = [
         's' => $USER->username,
     ];
+    if (empty(get_config('auth_wallet', 'emailconfirm'))) {
+        $params['p'] = $USER->secret;
+    }
     $confirmationurl = new \moodle_url('/auth/wallet/confirm.php', $params);
     redirect($confirmationurl);
 }
@@ -75,8 +72,8 @@ function auth_wallet_after_require_login() {
  * @return void
  */
 function auth_wallet_after_config() {
-    global $wallet;
-    if (isloggedin() && !isguestuser() && empty($wallet)) {
+    global $USER;
+    if (isloggedin() && !isguestuser() && !empty($USER->id)) {
         auth_wallet_after_require_login();
     }
 }

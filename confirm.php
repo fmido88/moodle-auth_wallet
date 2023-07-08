@@ -23,22 +23,23 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-global $wallet;
-// Used to prevent multiple redirection in this page.
-$wallet = true;
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
 require_once($CFG->dirroot . '/login/lib.php');
 require_once($CFG->libdir . '/authlib.php');
-// No need for this any more.
-unset($wallet);
 
 $p = optional_param('p', '', PARAM_ALPHANUM);   // Parameter: secret
 $s = optional_param('s', '', PARAM_RAW);        // Parameter: username
 $redirect = core_login_get_return_url();
-
+$logout = optional_param('logout', false, PARAM_BOOL);
+if ($logout) {
+    require_logout();
+    redirect($CFG->wwwroot.'/');
+    exit;
+}
 $PAGE->set_url('/auth/wallet/confirm.php');
 $PAGE->set_context(context_system::instance());
+$PAGE->set_pagelayout('login');
 
 if (!$auth = signup_get_user_confirmation_authplugin() || $auth->authtype !== 'wallet') {
     throw new moodle_exception('confirmationnotenabled');
@@ -51,7 +52,6 @@ if ((!empty($p) && !empty($s))) {
     $username   = $s;
 
     $confirmed = $authplugin->user_confirm($username, $usersecret);
-
     if ($confirmed == AUTH_CONFIRM_ALREADY) {
         $user = get_complete_user_data('username', $username);
         $PAGE->navbar->add(get_string("alreadyconfirmed"));
@@ -112,40 +112,44 @@ if (!empty($s)) {
 
 if (!empty($user) && is_object($user)) {
     $s = (empty($s)) ? $user->username : $s;
-    if (!$user->suspended) {
-        complete_user_login($user);
+    if (empty($user->suspended)) {
 
-        \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
-    }
+        if (!isloggedin() || empty($user->id)) {
+            complete_user_login($user);
+            \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
+        }
 
-    $transactions = new enrol_wallet\transactions;
-    $balance = $transactions->get_user_balance($user->id);
-    $required = get_config('auth_wallet', 'required_balance');
-    if ($balance >= $required) {
-        set_user_preference('auth_wallet_balanceconfirm', true, $user);
-        $params = [
-            's' => $s,
-            'p' => $user->secret,
-        ];
-        $url = new \moodle_url('/auth/wallet/confirm.php', $params);
-        redirect($url);
-    } else {
-        $PAGE->set_title('');
-        $PAGE->set_heading($COURSE->fullname);
-        echo $OUTPUT->header();
-        echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
-        $a = [
-            'balance' => $balance,
-            'required' => $required,
-            'rest' => $required - $balance,
-            'currency' => get_config('enrol_wallet', 'currency'),
-            'name' => fullname($user),
-        ];
-        echo get_string('payment_required', 'auth_wallet', $a);
-        echo enrol_wallet_display_topup_options();
-        echo $OUTPUT->box_end();
-        echo $OUTPUT->footer();
-        exit;
+        $transactions = new enrol_wallet\transactions;
+        $balance = $transactions->get_user_balance($user->id);
+        $required = get_config('auth_wallet', 'required_balance');
+        if ($balance >= $required) {
+            set_user_preference('auth_wallet_balanceconfirm', true, $user);
+            $params = [
+                's' => $s,
+                'p' => $user->secret,
+            ];
+            $url = new \moodle_url('/auth/wallet/confirm.php', $params);
+            redirect($url);
+        } else {
+            $PAGE->set_title('');
+            $PAGE->set_heading($COURSE->fullname);
+            echo $OUTPUT->header();
+            echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
+            $a = [
+                'balance'  => $balance,
+                'required' => $required,
+                'rest'     => $required - $balance,
+                'currency' => get_config('enrol_wallet', 'currency'),
+                'name'     => fullname($user),
+            ];
+            echo get_string('payment_required', 'auth_wallet', $a);
+            echo enrol_wallet_display_topup_options();
+            $url = new \moodle_url('/auth/wallet/confirm.php', ['logout' => 1]);
+            echo $OUTPUT->single_button($url, get_string('logout'));
+            echo $OUTPUT->box_end();
+            echo $OUTPUT->footer();
+            exit;
+        }
     }
 } else {
     throw new \moodle_exception("errorwhenconfirming");
