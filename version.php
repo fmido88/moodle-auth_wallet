@@ -25,10 +25,10 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'auth_wallet';
-$plugin->release = '0.1.0';
+$plugin->release = '1.0.0';
 $plugin->version = 2023070800;
 $plugin->requires = 2022112800;
-$plugin->maturity = MATURITY_ALPHA;
+$plugin->maturity = MATURITY_BETA;
 $plugin->dependencies = [
     'enrol_wallet' => ANY_VERSION,
 ];
