@@ -21,7 +21,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace auth_wallet\privacy;
-defined('MOODLE_INTERNAL') || die();
+
 /**
  * Privacy Subsystem for auth_wallet implementing null_provider.
  *

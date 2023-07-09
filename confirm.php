@@ -1,5 +1,4 @@
 <?php
-
 // This file is part of Moodle - http://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -28,8 +27,8 @@ require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
 require_once($CFG->dirroot . '/login/lib.php');
 require_once($CFG->libdir . '/authlib.php');
 
-$p = optional_param('p', '', PARAM_ALPHANUM);   // Parameter: secret
-$s = optional_param('s', '', PARAM_RAW);        // Parameter: username
+$p = optional_param('p', '', PARAM_ALPHANUM);   // Parameter: secret.
+$s = optional_param('s', '', PARAM_RAW);        // Parameter: username.
 $redirect = core_login_get_return_url();
 $logout = optional_param('logout', false, PARAM_BOOL);
 if ($logout) {
@@ -67,7 +66,7 @@ if ((!empty($p) && !empty($s))) {
 
     } else if ($confirmed == AUTH_CONFIRM_OK) {
 
-        // The user has confirmed successfully, let's log them in
+        // The user has confirmed successfully, let's log them in.
 
         if (!$user = get_complete_user_data('username', $username)) {
             throw new \moodle_exception('cannotfinduser', '', '', s($username));
@@ -118,7 +117,7 @@ if (!empty($user) && is_object($user)) {
             complete_user_login($user);
             \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
         }
-
+        require_login();
         $transactions = new enrol_wallet\transactions;
         $balance = $transactions->get_user_balance($user->id);
         $required = get_config('auth_wallet', 'required_balance');

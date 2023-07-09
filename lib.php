@@ -53,7 +53,13 @@ function auth_wallet_after_require_login() {
     $l = optional_param('logout', '', PARAM_TEXT);
 
     // Disable redirection in case of payment process.
-    if (!empty($itemid) || !empty($paymentarea) || !empty($component) || !empty($value) || !empty($coupon) || !empty($s) || !empty($l)) {
+    if (!empty($itemid)
+        || !empty($paymentarea)
+        || !empty($component)
+        || !empty($value)
+        || !empty($coupon)
+        || !empty($s)
+        || !empty($l)) {
         return;
     }
 

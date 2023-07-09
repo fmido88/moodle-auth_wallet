@@ -74,6 +74,14 @@ class auth_plugin_wallet extends auth_plugin_base {
         return true;
     }
 
+    /**
+     * Sign up a new user ready for confirmation.
+     * Password is passed in plaintext.
+     * @param $user: new user object
+     * @param $notify: print notice with link and terminate
+     * @throws \moodle_exception
+     * @return bool|void
+     */
     public function user_signup($user, $notify = true) {
         global $CFG, $DB, $SESSION;
         require_once($CFG->dirroot.'/user/profile/lib.php');
@@ -139,7 +147,7 @@ class auth_plugin_wallet extends auth_plugin_base {
      * @param string $confirmsecret
      * @return int
      */
-    function user_confirm($username, $confirmsecret) {
+    public function user_confirm($username, $confirmsecret) {
         global $DB, $SESSION;
         $user = get_complete_user_data('username', $username);
 
@@ -152,9 +160,9 @@ class auth_plugin_wallet extends auth_plugin_base {
             } else if ($user->secret === $confirmsecret && $user->confirmed && !empty($paycofirm)) {
                 return AUTH_CONFIRM_ALREADY;
 
-            } else if ($user->secret === $confirmsecret) {   // They have provided the secret key to get in
+            } else if ($user->secret === $confirmsecret) {   // They have provided the secret key to get in.
 
-                $DB->set_field("user", "confirmed", 1, array("id"=>$user->id));
+                $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
 
                 // Check if the user balance is sufficient.
                 $required = $this->config->required_balance;
@@ -185,9 +193,9 @@ class auth_plugin_wallet extends auth_plugin_base {
      * Post authentication hook.
      * This method is called from authenticate_user_login() for all enabled auth plugins.
      *
-     * @param $user: user object, later used for $USER
-     * @param $username: (with system magic quotes)
-     * @param $password: plain text password (with system magic quotes)
+     * @param stdClass $user: user object, later used for $USER
+     * @param string $username: (with system magic quotes)
+     * @param string $password: plain text password (with system magic quotes)
      */
     public function user_authenticated_hook(&$user, $username, $password) {
         $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', null, $user);
@@ -203,6 +211,7 @@ class auth_plugin_wallet extends auth_plugin_base {
             }
         }
     }
+
     /**
      * Returns true if this authentication plugin can change the user's password.
      *
@@ -296,7 +305,7 @@ class auth_plugin_wallet extends auth_plugin_base {
      * Returns whether or not the captcha element is enabled.
      * @return bool
      */
-    function is_captcha_enabled() {
+    public function is_captcha_enabled() {
         return $this->config->recaptcha;
     }
 }
