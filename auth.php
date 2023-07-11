@@ -77,8 +77,8 @@ class auth_plugin_wallet extends auth_plugin_base {
     /**
      * Sign up a new user ready for confirmation.
      * Password is passed in plaintext.
-     * @param $user: new user object
-     * @param $notify: print notice with link and terminate
+     * @param stdClass $user new user object
+     * @param bool $notify print notice with link and terminate
      * @throws \moodle_exception
      * @return bool|void
      */
@@ -216,9 +216,9 @@ class auth_plugin_wallet extends auth_plugin_base {
      * Post authentication hook.
      * This method is called from authenticate_user_login() for all enabled auth plugins.
      *
-     * @param stdClass $user: user object, later used for $USER
-     * @param string $username: (with system magic quotes)
-     * @param string $password: plain text password (with system magic quotes)
+     * @param stdClass $user user object, later used for $USER
+     * @param string $username (with system magic quotes)
+     * @param string $password plain text password (with system magic quotes)
      */
     public function user_authenticated_hook(&$user, $username, $password) {
         $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', null, $user);
