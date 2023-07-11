@@ -34,12 +34,12 @@ function auth_wallet_after_require_login() {
     global $USER, $CFG;
     require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
     // Disable redirection in case of another auth plugin.
-    if ($USER->auth !== 'wallet' || !empty($wallet)) {
+    if ($USER->auth !== 'wallet') {
         return;
     }
 
     // Check if first required payment already done.
-    $payconfirm = get_user_preferences('auth_wallet_balanceconfirm');
+    $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $USER);
     if (!empty($payconfirm) && !empty($USER->confirmed)) {
         return;
     }
@@ -52,7 +52,7 @@ function auth_wallet_after_require_login() {
     $s = optional_param('s', '', PARAM_TEXT);
     $l = optional_param('logout', '', PARAM_TEXT);
 
-    // Disable redirection in case of payment process.
+    // Disable redirection in case of payment process or confirm page.
     if (!empty($itemid)
         || !empty($paymentarea)
         || !empty($component)

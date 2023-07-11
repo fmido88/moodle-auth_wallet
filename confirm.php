@@ -36,6 +36,8 @@ if ($logout) {
     redirect($CFG->wwwroot.'/');
     exit;
 }
+$emailconfirm = get_config('auth_wallet', 'emailconfirm');
+
 $PAGE->set_url('/auth/wallet/confirm.php');
 $PAGE->set_context(context_system::instance());
 $PAGE->set_pagelayout('login');
@@ -67,7 +69,6 @@ if ((!empty($p) && !empty($s))) {
     } else if ($confirmed == AUTH_CONFIRM_OK) {
 
         // The user has confirmed successfully, let's log them in.
-
         if (!$user = get_complete_user_data('username', $username)) {
             throw new \moodle_exception('cannotfinduser', '', '', s($username));
         }
@@ -109,28 +110,46 @@ if (!empty($s)) {
     $user = $USER;
 }
 
+// Reaching this part of the code means either the user confirmed by email already and wait payment confirmation,
+// or confirmation by email is disabled.
 if (!empty($user) && is_object($user)) {
-    $s = (empty($s)) ? $user->username : $s;
-    if (empty($user->suspended)) {
+    if (empty($user->suspended) && (!empty($user->confirmed) || empty($emailconfirm))) {
 
+        // Prepare redirection url.
+        $params = [
+            's' => (empty($s)) ? $user->username : $s,
+            'p' => $user->secret,
+        ];
+        $url = new \moodle_url('/auth/wallet/confirm.php', $params);
+
+        // Login the user to enable payment.
         if (!isloggedin() || empty($user->id)) {
             complete_user_login($user);
+            if (empty($user->id)) {
+                global $USER;
+                $user->id = $USER->id;
+            }
             \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
         }
+
         require_login();
+
         $transactions = new enrol_wallet\transactions;
-        $balance = $transactions->get_user_balance($user->id);
-        $required = get_config('auth_wallet', 'required_balance');
-        if ($balance >= $required) {
+
+        $balance       = $transactions->get_user_balance($user->id);
+        $confirmmethod = get_config('auth_wallet', 'criteria');
+        $required      = get_config('auth_wallet', 'required_balance');
+        $fee           = get_config('auth_wallet', 'required_fee');
+
+        if ($confirmmethod === 'balance' && $balance >= $required) {
             set_user_preference('auth_wallet_balanceconfirm', true, $user);
-            $params = [
-                's' => $s,
-                'p' => $user->secret,
-            ];
-            $url = new \moodle_url('/auth/wallet/confirm.php', $params);
+            redirect($url);
+        } else if ($confirmmethod === 'fee' && $balance >= $fee) {
+            $transactions->debit($user->id, $fee, 'New user fee');
+            set_user_preference('auth_wallet_balanceconfirm', true, $user);
             redirect($url);
         } else {
-            $PAGE->set_title('');
+            $PAGE->set_title($COURSE->fullname);
             $PAGE->set_heading($COURSE->fullname);
             echo $OUTPUT->header();
             echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');

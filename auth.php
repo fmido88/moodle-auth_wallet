@@ -119,11 +119,20 @@ class auth_plugin_wallet extends auth_plugin_base {
             if (!send_confirmation_email($user, $confirmationurl)) {
                 throw new \moodle_exception('auth_walletnoemail', 'auth_wallet');
             }
+
+            if ($notify) {
+                global $CFG, $PAGE, $OUTPUT;
+                $emailconfirm = get_string('emailconfirm');
+                $PAGE->navbar->add($emailconfirm);
+                $PAGE->set_title($emailconfirm);
+                $PAGE->set_heading($PAGE->course->fullname);
+                echo $OUTPUT->header();
+                notice(get_string('emailconfirmsent', '', $user->email), "$CFG->wwwroot/index.php");
+            } else {
+                return true;
+            }
+
         } else { // Redirect to confirm.
-            $params = [
-                's' => $user->username,
-            ];
-            $confirmationurl = new \moodle_url('/auth/wallet/confirm.php', $params);
             redirect($confirmationurl);
         }
 
@@ -152,7 +161,7 @@ class auth_plugin_wallet extends auth_plugin_base {
         $user = get_complete_user_data('username', $username);
 
         if (!empty($user)) {
-            $paycofirm = get_user_preferences('auth_wallet_balanceconfirm');
+            $paycofirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
 
             if ($user->auth != $this->authtype) {
                 return AUTH_CONFIRM_ERROR;
@@ -164,12 +173,26 @@ class auth_plugin_wallet extends auth_plugin_base {
 
                 $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
 
-                // Check if the user balance is sufficient.
                 $required = $this->config->required_balance;
                 $balance = transactions::get_user_balance($user->id);
-                if ($balance < $required) {
+                $method = $this->config->criteria;
+                $fee = $this->config->required_fee;
+
+                // Check if the user balance is sufficient.
+                if ($method == 'balance' && $balance < $required) {
                     set_user_preference('auth_wallet_balanceconfirm', false, $user);
                     return AUTH_CONFIRM_FAIL;
+                }
+
+                // Check if the method depend on paying a confirm fee and not confirmed yet.
+                if ($method == 'fee' && empty($paycofirm)) {
+                    // Check if there already enough balance for paying the fee.
+                    if ($method == 'fee' && $balance >= $fee) {
+                        transactions::debit($user->id, $fee);
+                    } else {
+                        set_user_preference('auth_wallet_balanceconfirm', false, $user);
+                        return AUTH_CONFIRM_FAIL;
+                    }
                 }
 
                 set_user_preference('auth_wallet_balanceconfirm', true, $user);

@@ -33,17 +33,37 @@ if ($ADMIN->fulltree) {
                                                 get_string('emailconfirm', 'auth_wallet'),
                                                 get_string('emailconfirm_desc', 'auth_wallet'), 0));
 
-    $settings->add(new admin_setting_configtext('auth_wallet/required_balance',
+    $options = [
+        'balance' => get_string('balance_required', 'auth_wallet'),
+        'fee' => get_string('feerequired', 'auth_wallet')
+    ];
+    $settings->add(new admin_setting_configselect('auth_wallet/criteria',
+                                                get_string('confirmcriteria', 'auth_wallet'),
+                                                get_string('confirmcriteria', 'auth_wallet'), 1, $options));
+
+    $requiredbalance = new admin_setting_configtext('auth_wallet/required_balance',
                                                 get_string('required_balance', 'auth_wallet'),
                                                 get_string('required_balance_desc', 'auth_wallet'),
                                                 0,
                                                 PARAM_FLOAT,
-                                                null));
+                                                null);
+    $settings->add($requiredbalance);
+
+    $requiredfee = new admin_setting_configtext('auth_wallet/required_fee',
+                                                get_string('required_fee', 'auth_wallet'),
+                                                get_string('required_fee_desc', 'auth_wallet'),
+                                                0,
+                                                PARAM_FLOAT,
+                                                null);
+    $settings->add($requiredfee);
+
+    $settings->hide_if('auth_wallet/required_fee', 'auth_wallet/criteria', 'eq', 'balance');
+    $settings->hide_if('auth_wallet/required_balance', 'auth_wallet/criteria', 'eq', 'fee');
+
     $options = [
         0 => get_string('no'),
         1 => get_string('yes'),
     ];
-
     $settings->add(new admin_setting_configselect('auth_wallet/recaptcha',
                                                 get_string('auth_walletrecaptcha_key', 'auth_wallet'),
                                                 get_string('auth_walletrecaptcha', 'auth_wallet'), 0, $options));
