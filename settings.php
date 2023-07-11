@@ -27,7 +27,7 @@ defined('MOODLE_INTERNAL') || die;
 if ($ADMIN->fulltree) {
     // Introductory explanation.
     $settings->add(new admin_setting_heading('auth_wallet/pluginname', '',
-        get_string('auth_walletdescription', 'auth_wallet')));
+                                                get_string('auth_walletdescription', 'auth_wallet')));
 
     $settings->add(new admin_setting_configcheckbox('auth_wallet/emailconfirm',
                                                 get_string('emailconfirm', 'auth_wallet'),
@@ -49,6 +49,14 @@ if ($ADMIN->fulltree) {
                                                 null);
     $settings->add($requiredbalance);
 
+    $extrafee = new admin_setting_configtext('auth_wallet/extra_fee',
+                                                get_string('extra_fee', 'auth_wallet'),
+                                                get_string('extra_fee_desc', 'auth_wallet'),
+                                                0,
+                                                PARAM_FLOAT,
+                                                null);
+    $settings->add($extrafee);
+
     $requiredfee = new admin_setting_configtext('auth_wallet/required_fee',
                                                 get_string('required_fee', 'auth_wallet'),
                                                 get_string('required_fee_desc', 'auth_wallet'),
@@ -59,6 +67,7 @@ if ($ADMIN->fulltree) {
 
     $settings->hide_if('auth_wallet/required_fee', 'auth_wallet/criteria', 'eq', 'balance');
     $settings->hide_if('auth_wallet/required_balance', 'auth_wallet/criteria', 'eq', 'fee');
+    $settings->hide_if('auth_wallet/extra_fee', 'auth_wallet/criteria', 'eq', 'fee');
 
     $options = [
         0 => get_string('no'),

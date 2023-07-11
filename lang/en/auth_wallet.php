@@ -35,11 +35,17 @@ $string['confirmcriteria'] = 'Confirmation Requirement';
 $string['confirmcriteria_desc'] = 'Choose if the confirmation required a payment fee or some amount in the wallet.';
 $string['emailconfirm'] = 'Send confirmation email';
 $string['emailconfirm_desc'] = 'Sending a confirmation email first then redirect the user to the topping up page to charge the wallet with the minimum required amount.';
+$string['extra_fee'] = 'Extra fee';
+$string['extra_fee_desc'] = 'Deduct extra fee from the balance after confirmation.<br>NOTE: Make sure that Extra fees is less than the required balance, else confirmation error thrown.';
+$string['debitextrafee_desc'] = 'Extra fee for signup confirmation.';
+$string['debitfee_desc'] = 'Fee for signup confirmation';
+$string['extrafeerequired'] = '<p>Note: There is an extra fee {$a} will be deducted after confirmation.</p>';
 $string['feerequired'] = 'Fee Required';
 $string['payment_required'] = '<h6>Welcome {$a->name}</h5>
 <p>In order to complete your signup you must have a balance of {$a->required} {$a->currency} in your wallet.</p>
 <p><strong>Your current balance is {$a->balance} {$a->currency}</strong></p>
-<p>You need to recharge you wallet by {$a->rest} {$a->currency}</p>';
+<p>You need to recharge you wallet by {$a->rest} {$a->currency}</p>
+{$a->extrafee}';
 $string['fee_required'] = '<h6>Welcome {$a->name}</h5>
 <p>In order to complete your signup you must pay confirmation fee {$a->required} {$a->currency} by your wallet.</p>
 <p><strong>Your current balance is {$a->balance} {$a->currency}</strong></p>
@@ -50,3 +56,4 @@ $string['required_balance'] = 'Min required balance.';
 $string['required_balance_desc'] = 'The minimum required balance the user need to charge wallet to confirm registration';
 $string['required_fee'] = 'Required fee';
 $string['required_fee_desc'] = 'Minimum required payment fee to confirm the account.';
+$string['settingerror'] = 'Configuration error, please contact support.';

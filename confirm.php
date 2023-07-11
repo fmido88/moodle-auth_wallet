@@ -125,10 +125,12 @@ if (!empty($user) && is_object($user)) {
         // Login the user to enable payment.
         if (!isloggedin() || empty($user->id)) {
             complete_user_login($user);
+
             if (empty($user->id)) {
                 global $USER;
                 $user->id = $USER->id;
             }
+
             \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
         }
 
@@ -140,8 +142,17 @@ if (!empty($user) && is_object($user)) {
         $confirmmethod = get_config('auth_wallet', 'criteria');
         $required      = get_config('auth_wallet', 'required_balance');
         $fee           = get_config('auth_wallet', 'required_fee');
+        $extrafee      = get_config('auth_wallet', 'extra_fee');
 
         if ($confirmmethod === 'balance' && $balance >= $required) {
+            if (!empty($extrafee)) {
+                if ($balance >= $extrafee) {
+                    $transactions->debit($user->id, $extrafee);
+                } else {
+                    throw new moodle_exception('insufficientbalance');
+                }
+            }
+
             set_user_preference('auth_wallet_balanceconfirm', true, $user);
             redirect($url);
         } else if ($confirmmethod === 'fee' && $balance >= $fee) {
@@ -149,6 +160,7 @@ if (!empty($user) && is_object($user)) {
             set_user_preference('auth_wallet_balanceconfirm', true, $user);
             redirect($url);
         } else {
+            // Display the payment page.
             $PAGE->set_title($COURSE->fullname);
             $PAGE->set_heading($COURSE->fullname);
             echo $OUTPUT->header();
@@ -159,9 +171,19 @@ if (!empty($user) && is_object($user)) {
                 'rest'     => $required - $balance,
                 'currency' => get_config('enrol_wallet', 'currency'),
                 'name'     => fullname($user),
+                'extrafee' => !empty($extrafee) ? get_string('extrafeerequired', 'auth_wallet', $extrafee) : '',
             ];
-            echo get_string('payment_required', 'auth_wallet', $a);
-            echo enrol_wallet_display_topup_options();
+
+            if ($confirmmethod === 'balance') {
+                echo get_string('payment_required', 'auth_wallet', $a);
+                echo enrol_wallet_display_topup_options();
+            } else if ($confirmmethod === 'fee') {
+                echo get_string('fee_required', 'auth_wallet', $a);
+                echo enrol_wallet_display_topup_options();
+            } else {
+                echo $OUTPUT->notification(get_string('settingerror', 'auth_wallet'), 'error');
+            }
+
             $url = new \moodle_url('/auth/wallet/confirm.php', ['logout' => 1]);
             echo $OUTPUT->single_button($url, get_string('logout'));
             echo $OUTPUT->box_end();

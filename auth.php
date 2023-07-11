@@ -177,18 +177,23 @@ class auth_plugin_wallet extends auth_plugin_base {
                 $balance = transactions::get_user_balance($user->id);
                 $method = $this->config->criteria;
                 $fee = $this->config->required_fee;
+                $extrafee = $this->config->extra_fee;
 
                 // Check if the user balance is sufficient.
-                if ($method == 'balance' && $balance < $required) {
+                if ($method === 'balance' && $balance < $required) {
                     set_user_preference('auth_wallet_balanceconfirm', false, $user);
                     return AUTH_CONFIRM_FAIL;
+                } else if ($method == 'balance' && !empty($extrafee) && $balance >= $required) {
+                    $desc = get_string('debitextrafee_desc', 'auth_wallet');
+                    transactions::debit($user->id, $extrafee, '', '', $desc);
                 }
 
                 // Check if the method depend on paying a confirm fee and not confirmed yet.
-                if ($method == 'fee' && empty($paycofirm)) {
+                if ($method === 'fee' && empty($paycofirm)) {
                     // Check if there already enough balance for paying the fee.
-                    if ($method == 'fee' && $balance >= $fee) {
-                        transactions::debit($user->id, $fee);
+                    if ($method === 'fee' && $balance >= $fee) {
+                        $desc = get_string('debitfee_desc', 'auth_wallet');
+                        transactions::debit($user->id, $fee, '', '', $desc);
                     } else {
                         set_user_preference('auth_wallet_balanceconfirm', false, $user);
                         return AUTH_CONFIRM_FAIL;
@@ -204,12 +209,10 @@ class auth_plugin_wallet extends auth_plugin_base {
                 }
 
                 return AUTH_CONFIRM_OK;
-            } else {
-                return AUTH_CONFIRM_ERROR;
             }
-        } else {
-            return AUTH_CONFIRM_ERROR;
         }
+
+        return AUTH_CONFIRM_ERROR;
     }
 
     /**
@@ -223,7 +226,7 @@ class auth_plugin_wallet extends auth_plugin_base {
     public function user_authenticated_hook(&$user, $username, $password) {
         $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', null, $user);
 
-        if ((empty($user->confirmed) || empty($payconfirm)) && $user->auth === 'wallet') {
+        if ($user->auth === 'wallet' && (empty($user->confirmed) || empty($payconfirm))) {
             if (empty($this->config->emailconfirm)) {
                 $params = [
                     's' => $user->username,
