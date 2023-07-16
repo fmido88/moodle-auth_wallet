@@ -24,7 +24,15 @@
 
 defined('MOODLE_INTERNAL') || die;
 
+require_once(__DIR__.'/lib.php');
+
+$manualurl = new moodle_url('/auth/wallet/manualconfirm.php');
+$page = new admin_externalpage('auth_wallet_manualconfirm', get_string('manual_confirm', 'auth_wallet'), $manualurl, 'auth/wallet:manualconfirm');
+$ADMIN->add('accounts', $page);
+
+
 if ($ADMIN->fulltree) {
+
     // Introductory explanation.
     $settings->add(new admin_setting_heading('auth_wallet/pluginname', '',
                                                 get_string('auth_walletdescription', 'auth_wallet')));
@@ -32,7 +40,9 @@ if ($ADMIN->fulltree) {
     $settings->add(new admin_setting_configcheckbox('auth_wallet/emailconfirm',
                                                 get_string('emailconfirm', 'auth_wallet'),
                                                 get_string('emailconfirm_desc', 'auth_wallet'), 0));
-
+    $settings->add(new admin_setting_configcheckbox('auth_wallet/all',
+                                                get_string('applytoall', 'auth_wallet'),
+                                                get_string('applytoall_desc', 'auth_wallet'), 0));
     $options = [
         'balance' => get_string('balance_required', 'auth_wallet'),
         'fee' => get_string('feerequired', 'auth_wallet')
@@ -47,6 +57,8 @@ if ($ADMIN->fulltree) {
                                                 0,
                                                 PARAM_FLOAT,
                                                 null);
+    $requiredbalance->set_updatedcallback('auth_wallet_check_extrafee_validation');
+
     $settings->add($requiredbalance);
 
     $extrafee = new admin_setting_configtext('auth_wallet/extra_fee',
@@ -55,6 +67,7 @@ if ($ADMIN->fulltree) {
                                                 0,
                                                 PARAM_FLOAT,
                                                 null);
+    $extrafee->set_updatedcallback('auth_wallet_check_extrafee_validation');
     $settings->add($extrafee);
 
     $requiredfee = new admin_setting_configtext('auth_wallet/required_fee',

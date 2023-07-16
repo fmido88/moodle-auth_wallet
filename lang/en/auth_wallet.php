@@ -30,6 +30,8 @@ $string['auth_walletnoemail'] = 'Tried to send you an email but failed!';
 $string['auth_walletrecaptcha'] = 'Adds a visual/audio confirmation form element to the sign-up page for email self-registering users. This protects your site against spammers and contributes to a worthwhile cause. See https://www.google.com/recaptcha for more details.';
 $string['auth_walletrecaptcha_key'] = 'Enable reCAPTCHA element';
 $string['auth_walletsettings'] = 'Settings';
+$string['applytoall'] = 'Apply to all';
+$string['applytoall_desc'] = 'Apply balance or fee confirmation to all auth plugins.';
 $string['balance_required'] = 'Balance Required';
 $string['confirmcriteria'] = 'Confirmation Requirement';
 $string['confirmcriteria_desc'] = 'Choose if the confirmation required a payment fee or some amount in the wallet.';
@@ -37,6 +39,7 @@ $string['emailconfirm'] = 'Send confirmation email';
 $string['emailconfirm_desc'] = 'Sending a confirmation email first then redirect the user to the topping up page to charge the wallet with the minimum required amount.';
 $string['extra_fee'] = 'Extra fee';
 $string['extra_fee_desc'] = 'Deduct extra fee from the balance after confirmation.<br>NOTE: Make sure that Extra fees is less than the required balance, else confirmation error thrown.';
+$string['extra_fee_error'] = 'Cannot set extra fee more than the required balance.';
 $string['debitextrafee_desc'] = 'Extra fee for signup confirmation.';
 $string['debitfee_desc'] = 'Fee for signup confirmation';
 $string['extrafeerequired'] = '<p>Note: There is an extra fee {$a} will be deducted after confirmation.</p>';
@@ -50,6 +53,7 @@ $string['fee_required'] = '<h6>Welcome {$a->name}</h5>
 <p>In order to complete your signup you must pay confirmation fee {$a->required} {$a->currency} by your wallet.</p>
 <p><strong>Your current balance is {$a->balance} {$a->currency}</strong></p>
 <p>You need to recharge you wallet by {$a->rest} {$a->currency} to complete payment</p>';
+$string['manual_confirm'] = 'Manual wallet balance confirmation for users';
 $string['pluginname'] = 'Signup with Wallet Balance Confirm';
 $string['privacy:metadata'] = 'The Signup with Wallet Balance Confirm authentication plugin does not store any personal data.';
 $string['required_balance'] = 'Min required balance.';

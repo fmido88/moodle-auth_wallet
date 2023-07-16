@@ -33,24 +33,30 @@ require_once($CFG->libdir.'/authlib.php');
 function auth_wallet_after_require_login() {
     global $USER, $CFG;
     require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
+    if (isguestuser() || empty($USER->id)) {
+        return;
+    }
+    $all = get_config('auth_wallet', 'all');
     // Disable redirection in case of another auth plugin.
-    if ($USER->auth !== 'wallet') {
+    if (empty($all) && $USER->auth !== 'wallet') {
         return;
     }
 
     // Check if first required payment already done.
     $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $USER);
-    if (!empty($payconfirm) && !empty($USER->confirmed)) {
+    if ($payconfirm) {
         return;
     }
-
-    $itemid = optional_param('itemid', '', PARAM_INT);
+    $itemid      = optional_param('itemid', '', PARAM_INT);
     $paymentarea = optional_param('paymentarea', '', PARAM_TEXT);
-    $component = optional_param('component', '', PARAM_RAW);
-    $value = optional_param('value', '', PARAM_FLOAT);
-    $coupon = optional_param('coupon', '', PARAM_TEXT);
-    $s = optional_param('s', '', PARAM_TEXT);
-    $l = optional_param('logout', '', PARAM_TEXT);
+    $component   = optional_param('component', '', PARAM_RAW);
+    $value       = optional_param('value', '', PARAM_FLOAT);
+    $coupon      = optional_param('coupon', '', PARAM_TEXT);
+    $order       = optional_param('order', '', PARAM_RAW);
+    $obj         = optional_param('obj', '', PARAM_RAW);
+    $s           = optional_param('s', '', PARAM_TEXT);
+    $l           = optional_param('logout', '', PARAM_TEXT);
+    $returnto    = optional_param('returnto', '', PARAM_TEXT);
 
     // Disable redirection in case of payment process or confirm page.
     if (!empty($itemid)
@@ -58,8 +64,12 @@ function auth_wallet_after_require_login() {
         || !empty($component)
         || !empty($value)
         || !empty($coupon)
+        || !empty($order)
         || !empty($s)
-        || !empty($l)) {
+        || !empty($l)
+        || !empty($returnto)
+        ) {
+
         return;
     }
 
@@ -69,7 +79,9 @@ function auth_wallet_after_require_login() {
     if (empty(get_config('auth_wallet', 'emailconfirm'))) {
         $params['p'] = $USER->secret;
     }
+
     $confirmationurl = new \moodle_url('/auth/wallet/confirm.php', $params);
+
     redirect($confirmationurl);
 }
 
@@ -79,7 +91,27 @@ function auth_wallet_after_require_login() {
  */
 function auth_wallet_after_config() {
     global $USER;
+
     if (isloggedin() && !isguestuser() && !empty($USER->id)) {
+        // Check if first required payment already done.
+        $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $USER);
+        if (!empty($payconfirm) && !empty($USER->confirmed)) {
+            return;
+        }
         auth_wallet_after_require_login();
+    }
+}
+
+/**
+ * Callback function after updating extra fee value or required balance for validation,
+ * if the value is greater than the required balance it display error after set the value to the max allowed value.
+ * @return void
+ */
+function auth_wallet_check_extrafee_validation() {
+    $config = get_config('auth_wallet');
+    if ($config->criteria === 'balance' && isset($config->extra_fee) && $config->extra_fee > $config->required_balance) {
+        set_config('extra_fee', $config->required_balance, 'auth_wallet');
+        $error = get_string('extra_fee_error', 'auth_wallet');
+        redirect(new moodle_url('/admin/settings.php', ['section' => 'authsettingwallet']), $error, null, 'error');
     }
 }

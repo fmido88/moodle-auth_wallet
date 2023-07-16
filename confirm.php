@@ -23,32 +23,43 @@
  */
 
 require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__.'/auth.php');
 require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
 require_once($CFG->dirroot . '/login/lib.php');
 require_once($CFG->libdir . '/authlib.php');
+require_once($CFG->dirroot.'/user/editlib.php');
+
+global $SESSION;
 
 $p = optional_param('p', '', PARAM_ALPHANUM);   // Parameter: secret.
 $s = optional_param('s', '', PARAM_RAW);        // Parameter: username.
-$redirect = core_login_get_return_url();
+$redirect = new moodle_url('/');
+
+// Logout button pressed.
 $logout = optional_param('logout', false, PARAM_BOOL);
 if ($logout) {
     require_logout();
     redirect($CFG->wwwroot.'/');
     exit;
 }
+
 $emailconfirm = get_config('auth_wallet', 'emailconfirm');
+$all = get_config('auth_wallet', 'all');
 
 $PAGE->set_url('/auth/wallet/confirm.php');
 $PAGE->set_context(context_system::instance());
 $PAGE->set_pagelayout('login');
 
-if (!$auth = signup_get_user_confirmation_authplugin() || $auth->authtype !== 'wallet') {
-    throw new moodle_exception('confirmationnotenabled');
+if (empty($all)) {
+    if (!$auth = signup_get_user_confirmation_authplugin() || $auth->authtype !== 'wallet') {
+    
+        throw new moodle_exception('confirmationnotenabled');
+    }
 }
 
 $authplugin = new auth_plugin_wallet();
 
-if ((!empty($p) && !empty($s))) {
+if (!empty($p) && !empty($s)) {
     $usersecret = $p;
     $username   = $s;
 
@@ -107,21 +118,28 @@ if (!empty($s)) {
     $user = get_complete_user_data('username', $s);
 } else {
     global $USER;
-    $user = $USER;
+    $user = get_complete_user_data('id', $USER->id);
 }
+
+$payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
 
 // Reaching this part of the code means either the user confirmed by email already and wait payment confirmation,
 // or confirmation by email is disabled.
 if (!empty($user) && is_object($user)) {
+
     if (empty($user->suspended) && (!empty($user->confirmed) || empty($emailconfirm))) {
 
         // Prepare redirection url.
-        $params = [
-            's' => (empty($s)) ? $user->username : $s,
-            'p' => $user->secret,
-        ];
-        $url = new \moodle_url('/auth/wallet/confirm.php', $params);
 
+        if (!empty($user->confirmed)) {
+            $url = $redirect;
+        } else {
+            $params = [
+                's' => (empty($s)) ? $user->username : $s,
+                'p' => $user->secret,
+            ];
+            $url = new \moodle_url('/auth/wallet/confirm.php', $params);
+        }
         // Login the user to enable payment.
         if (!isloggedin() || empty($user->id)) {
             complete_user_login($user);
@@ -147,17 +165,23 @@ if (!empty($user) && is_object($user)) {
         if ($confirmmethod === 'balance' && $balance >= $required) {
             if (!empty($extrafee)) {
                 if ($balance >= $extrafee) {
-                    $transactions->debit($user->id, $extrafee);
+                    if (empty($payconfirm)) {
+                        $transactions->debit($user->id, $extrafee);
+                    }
                 } else {
                     throw new moodle_exception('insufficientbalance');
                 }
             }
-
             set_user_preference('auth_wallet_balanceconfirm', true, $user);
+            useredit_update_user_preference($user);
             redirect($url);
+
         } else if ($confirmmethod === 'fee' && $balance >= $fee) {
-            $transactions->debit($user->id, $fee, 'New user fee');
+            if (empty($payconfirm)) {
+                $transactions->debit($user->id, $fee, 'New user fee');
+            }
             set_user_preference('auth_wallet_balanceconfirm', true, $user);
+            useredit_update_user_preference($user);
             redirect($url);
         } else {
             // Display the payment page.

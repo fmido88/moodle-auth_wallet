@@ -99,9 +99,11 @@ class auth_plugin_wallet extends auth_plugin_base {
             $user->calendartype = $CFG->calendartype;
         }
 
-        $user->id = user_create_user($user, false, false);
+        if (empty($user->id)) {
+            $user->id = user_create_user($user, false, false);
 
-        user_add_password_history($user->id, $plainpassword);
+            user_add_password_history($user->id, $plainpassword);    
+        }
 
         // Save any custom profile field information.
         profile_save_data($user);
@@ -161,27 +163,32 @@ class auth_plugin_wallet extends auth_plugin_base {
         $user = get_complete_user_data('username', $username);
 
         if (!empty($user)) {
-            $paycofirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
+            $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
+            $all = get_config('auth_wallet', 'all');
 
-            if ($user->auth != $this->authtype) {
+            $verified = empty($user->secret || $user->secret === $confirmsecret);
+            if (empty($all) && $user->auth != 'wallet') {
                 return AUTH_CONFIRM_ERROR;
 
-            } else if ($user->secret === $confirmsecret && $user->confirmed && !empty($paycofirm)) {
+            } else if ($user->confirmed && !empty($payconfirm)) {
                 return AUTH_CONFIRM_ALREADY;
 
-            } else if ($user->secret === $confirmsecret) {   // They have provided the secret key to get in.
+            } else if ($verified && $payconfirm) {
+                $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
+                return AUTH_CONFIRM_OK;
+
+            } else if ($verified && !$payconfirm) {
 
                 $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
 
                 $required = $this->config->required_balance;
-                $balance = transactions::get_user_balance($user->id);
-                $method = $this->config->criteria;
-                $fee = $this->config->required_fee;
+                $balance  = transactions::get_user_balance($user->id);
+                $method   = $this->config->criteria;
+                $fee      = $this->config->required_fee;
                 $extrafee = $this->config->extra_fee;
 
                 // Check if the user balance is sufficient.
-                if ($method === 'balance' && $balance < $required) {
-                    set_user_preference('auth_wallet_balanceconfirm', false, $user);
+                if ($method == 'balance' && $balance < $required) {
                     return AUTH_CONFIRM_FAIL;
                 } else if ($method == 'balance' && !empty($extrafee) && $balance >= $required) {
                     $desc = get_string('debitextrafee_desc', 'auth_wallet');
@@ -189,19 +196,18 @@ class auth_plugin_wallet extends auth_plugin_base {
                 }
 
                 // Check if the method depend on paying a confirm fee and not confirmed yet.
-                if ($method === 'fee' && empty($paycofirm)) {
+                if ($method === 'fee') {
                     // Check if there already enough balance for paying the fee.
                     if ($method === 'fee' && $balance >= $fee) {
                         $desc = get_string('debitfee_desc', 'auth_wallet');
                         transactions::debit($user->id, $fee, '', '', $desc);
                     } else {
-                        set_user_preference('auth_wallet_balanceconfirm', false, $user);
                         return AUTH_CONFIRM_FAIL;
                     }
                 }
 
                 set_user_preference('auth_wallet_balanceconfirm', true, $user);
-
+                useredit_update_user_preference($user);
                 if ($wantsurl = get_user_preferences('auth_wallet_wantsurl', false, $user)) {
                     // Ensure user gets returned to page they were trying to access before signing up.
                     $SESSION->wantsurl = $wantsurl;
@@ -224,9 +230,9 @@ class auth_plugin_wallet extends auth_plugin_base {
      * @param string $password plain text password (with system magic quotes)
      */
     public function user_authenticated_hook(&$user, $username, $password) {
-        $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', null, $user);
+        $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
 
-        if ($user->auth === 'wallet' && (empty($user->confirmed) || empty($payconfirm))) {
+        if ($user->auth === 'wallet' && !$payconfirm) {
             if (empty($this->config->emailconfirm)) {
                 $params = [
                     's' => $user->username,
