@@ -27,7 +27,10 @@ defined('MOODLE_INTERNAL') || die;
 require_once(__DIR__.'/lib.php');
 
 $manualurl = new moodle_url('/auth/wallet/manualconfirm.php');
-$page = new admin_externalpage('auth_wallet_manualconfirm', get_string('manual_confirm', 'auth_wallet'), $manualurl, 'auth/wallet:manualconfirm');
+$page = new admin_externalpage('auth_wallet_manualconfirm',
+                                get_string('manual_confirm', 'auth_wallet'),
+                                $manualurl,
+                                'auth/wallet:manualconfirm');
 $ADMIN->add('accounts', $page);
 
 

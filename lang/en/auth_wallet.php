@@ -61,3 +61,4 @@ $string['required_balance_desc'] = 'The minimum required balance the user need t
 $string['required_fee'] = 'Required fee';
 $string['required_fee_desc'] = 'Minimum required payment fee to confirm the account.';
 $string['settingerror'] = 'Configuration error, please contact support.';
+$string['usersconfirmed'] = '{$a} user(s) has been confirmed.';

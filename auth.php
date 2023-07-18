@@ -100,9 +100,10 @@ class auth_plugin_wallet extends auth_plugin_base {
         }
 
         if (empty($user->id)) {
+            $trigger = true;
             $user->id = user_create_user($user, false, false);
 
-            user_add_password_history($user->id, $plainpassword);    
+            user_add_password_history($user->id, $plainpassword);
         }
 
         // Save any custom profile field information.
@@ -113,8 +114,10 @@ class auth_plugin_wallet extends auth_plugin_base {
             set_user_preference('auth_wallet_wantsurl', $SESSION->wantsurl, $user);
         }
 
-        // Trigger event.
-        \core\event\user_created::create_from_userid($user->id)->trigger();
+        if (!empty($trigger)) {
+            // Trigger event.
+            \core\event\user_created::create_from_userid($user->id)->trigger();
+        }
 
         // If email confirmation enabled, send the email with the confirmation link.
         if (!empty($this->config->emailconfirm)) {
@@ -137,18 +140,6 @@ class auth_plugin_wallet extends auth_plugin_base {
         } else { // Redirect to confirm.
             redirect($confirmationurl);
         }
-
-        if ($notify && !empty($this->config->emailconfirm)) {
-            global $CFG, $PAGE, $OUTPUT;
-            $emailconfirm = get_string('emailconfirm');
-            $PAGE->navbar->add($emailconfirm);
-            $PAGE->set_title($emailconfirm);
-            $PAGE->set_heading($PAGE->course->fullname);
-            echo $OUTPUT->header();
-            notice(get_string('emailconfirmsent', '', $user->email), "$CFG->wwwroot/index.php");
-        } else {
-            return true;
-        }
     }
 
     /**
@@ -166,18 +157,18 @@ class auth_plugin_wallet extends auth_plugin_base {
             $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
             $all = get_config('auth_wallet', 'all');
 
-            $verified = empty($user->secret || $user->secret === $confirmsecret);
+            $verified = empty($user->secret) || $user->secret === $confirmsecret;
             if (empty($all) && $user->auth != 'wallet') {
                 return AUTH_CONFIRM_ERROR;
 
             } else if ($user->confirmed && !empty($payconfirm)) {
                 return AUTH_CONFIRM_ALREADY;
 
-            } else if ($verified && $payconfirm) {
+            } else if ($verified && !empty($payconfirm)) {
                 $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
                 return AUTH_CONFIRM_OK;
 
-            } else if ($verified && !$payconfirm) {
+            } else if ($verified && empty($payconfirm)) {
 
                 $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
 
@@ -215,6 +206,8 @@ class auth_plugin_wallet extends auth_plugin_base {
                 }
 
                 return AUTH_CONFIRM_OK;
+            } else {
+                return AUTH_CONFIRM_FAIL;
             }
         }
 
@@ -230,18 +223,7 @@ class auth_plugin_wallet extends auth_plugin_base {
      * @param string $password plain text password (with system magic quotes)
      */
     public function user_authenticated_hook(&$user, $username, $password) {
-        $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
-
-        if ($user->auth === 'wallet' && !$payconfirm) {
-            if (empty($this->config->emailconfirm)) {
-                $params = [
-                    's' => $user->username,
-                    'p' => $user->secret,
-                ];
-                $confirmationurl = new \moodle_url('/auth/wallet/confirm.php', $params);
-                redirect($confirmationurl);
-            }
-        }
+        // Callback observer used instate.
     }
 
     /**

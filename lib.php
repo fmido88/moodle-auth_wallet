@@ -31,11 +31,13 @@ require_once($CFG->libdir.'/authlib.php');
  * @return void
  */
 function auth_wallet_after_require_login() {
-    global $USER, $CFG;
+    global $USER, $CFG, $DB, $SESSION;
     require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
+    require_once($CFG->dirroot.'/login/lib.php');
     if (isguestuser() || empty($USER->id)) {
         return;
     }
+
     $all = get_config('auth_wallet', 'all');
     // Disable redirection in case of another auth plugin.
     if (empty($all) && $USER->auth !== 'wallet') {
@@ -44,7 +46,7 @@ function auth_wallet_after_require_login() {
 
     // Check if first required payment already done.
     $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $USER);
-    if ($payconfirm) {
+    if (!empty($payconfirm)) {
         return;
     }
     $itemid      = optional_param('itemid', '', PARAM_INT);
@@ -57,8 +59,9 @@ function auth_wallet_after_require_login() {
     $s           = optional_param('s', '', PARAM_TEXT);
     $l           = optional_param('logout', '', PARAM_TEXT);
     $returnto    = optional_param('returnto', '', PARAM_TEXT);
+    $data        = optional_param('data', '', PARAM_RAW);
 
-    // Disable redirection in case of payment process or confirm page.
+    // Disable redirection in case of payment process, confirm page, apply coupon or profile edit.
     if (!empty($itemid)
         || !empty($paymentarea)
         || !empty($component)
@@ -68,6 +71,8 @@ function auth_wallet_after_require_login() {
         || !empty($s)
         || !empty($l)
         || !empty($returnto)
+        || !empty($obj)
+        || !empty($data)
         ) {
 
         return;
@@ -76,12 +81,17 @@ function auth_wallet_after_require_login() {
     $params = [
         's' => $USER->username,
     ];
-    if (empty(get_config('auth_wallet', 'emailconfirm'))) {
+    if (empty(get_config('auth_wallet', 'emailconfirm')) // Email confirmation disabled.
+        || ($USER->auth == 'wallet' && !empty($USER->confirmed)) // Email already confirmed.
+        || ($USER->auth != 'wallet') // Another auth method.
+        ) {
+        if (empty($USER->secret)) {
+            $USER->secret = random_string(15);
+            $DB->set_field('user', 'secret', $USER->secret, ['id' => $USER->id]);
+        }
         $params['p'] = $USER->secret;
     }
-
     $confirmationurl = new \moodle_url('/auth/wallet/confirm.php', $params);
-
     redirect($confirmationurl);
 }
 

@@ -23,7 +23,8 @@
  */
 
 require_once(__DIR__ . '/../../config.php');
-
+require_once($CFG->dirroot.'/user/editlib.php');
+global $DB;
 require_login();
 require_capability('auth/wallet:manualconfirm', context_system::instance());
 
@@ -39,20 +40,24 @@ $PAGE->set_pagelayout('admin');
 
 $confirm = optional_param('confirm', '', PARAM_BOOL);
 $userids = optional_param_array('userids', '', PARAM_INT);
-if (!empty($confirm) && !empty($userid) && confirm_sesskey()) {
+if (!empty($confirm) && !empty($userids) && confirm_sesskey()) {
     $i = 0;
+
     foreach ($userids as $userid) {
-        $user = core_user::get_user($userid);
-        if (!empty($user) && !isguestuser($user)) {
+        $user = get_complete_user_data('id', $userid);
+        if (!empty($user)) {
             set_user_preference('auth_wallet_balanceconfirm', true, $user);
+            useredit_update_user_preference($user);
+            $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
             $i++;
         }
     }
-    core\notification::success(get_string('usersconfirmed', 'auth_wallet', $i));
+    redirect($baseurl, get_string('usersconfirmed', 'auth_wallet', $i), null, 'success');
 }
+
 echo $OUTPUT->header();
 
-$mform = new MoodleQuickForm('manual_wallet_confirm', 'post', $baseurl);
+$mform = new MoodleQuickForm('manual_wallet_confirm', 'get', $baseurl);
 
 $mform->addElement('header', 'head', get_string('manual_confirm', 'auth_wallet'));
 
@@ -68,8 +73,7 @@ $options = [
 ];
 $mform->addElement('autocomplete', 'userids', get_string('selectusers', 'enrol_manual'), [], $options);
 $mform->addRule('userids', 'select user', 'required', null, 'client');
-
-$mform->addElement('submit', 'connfirm', get_string('confirm'));
+$mform->addElement('submit', 'confirm', get_string('confirm'));
 
 $mform->addElement('hidden', 'sesskey');
 $mform->setType('sesskey', PARAM_TEXT);
