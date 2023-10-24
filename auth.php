@@ -44,6 +44,7 @@ class auth_plugin_wallet extends auth_plugin_base {
     public function __construct() {
         $this->authtype = 'wallet';
         $this->config = get_config('auth_wallet');
+        $this->get_custom_user_profile_fields();
     }
 
     /**
@@ -59,19 +60,14 @@ class auth_plugin_wallet extends auth_plugin_base {
 
         // Validate the login by using the Moodle user table.
         // Remove if a different authentication method is desired.
-        $user = $DB->get_record('user', array('username' => $username, 'mnethostid' => $CFG->mnet_localhost_id));
+        $user = $DB->get_record('user', ['username' => $username]);
 
         // User does not exist.
         if (!$user) {
             return false;
         }
 
-        $validate = validate_internal_user_password($user, $password);
-        if (!$validate) {
-            return false;
-        }
-
-        return true;
+        return validate_internal_user_password($user, $password);
     }
 
     /**
@@ -99,15 +95,22 @@ class auth_plugin_wallet extends auth_plugin_base {
             $user->calendartype = $CFG->calendartype;
         }
 
-        if (empty($user->id)) {
+        if (!$DB->record_exists('auth_wallet_confirm', ['userid' => $user->id])) {
+            $params = ['userid' => $user->id, 'confirmed' => 0, 'timecreated' => time()];
+            $DB->insert_record('auth_wallet_confirm', $params);
+        }
+
+        // Check if the user already existed.
+        $exist = get_complete_user_data('username', $user->username);
+        if (empty($exist->id)) {
             $trigger = true;
             $user->id = user_create_user($user, false, false);
 
             user_add_password_history($user->id, $plainpassword);
-        }
 
-        // Save any custom profile field information.
-        profile_save_data($user);
+            // Save any custom profile field information.
+            profile_save_data($user);
+        }
 
         // Save wantsurl against user's profile, so we can return them there upon confirmation.
         if (!empty($SESSION->wantsurl)) {
@@ -150,7 +153,9 @@ class auth_plugin_wallet extends auth_plugin_base {
      * @return int
      */
     public function user_confirm($username, $confirmsecret) {
-        global $DB, $SESSION;
+        global $DB, $SESSION, $CFG;
+        require_once($CFG->dirroot.'/user/editlib.php');
+        require_once(__DIR__.'/lib.php');
         $user = get_complete_user_data('username', $username);
 
         if (!empty($user)) {
@@ -197,8 +202,7 @@ class auth_plugin_wallet extends auth_plugin_base {
                     }
                 }
 
-                set_user_preference('auth_wallet_balanceconfirm', true, $user);
-                useredit_update_user_preference($user);
+                auth_wallet_set_confirmed($user);
                 if ($wantsurl = get_user_preferences('auth_wallet_wantsurl', false, $user)) {
                     // Ensure user gets returned to page they were trying to access before signing up.
                     $SESSION->wantsurl = $wantsurl;
@@ -224,6 +228,21 @@ class auth_plugin_wallet extends auth_plugin_base {
      */
     public function user_authenticated_hook(&$user, $username, $password) {
         // Callback observer used instate.
+    }
+
+    /**
+     * Updates the user's password.
+     *
+     * Called when the user password is updated.
+     *
+     * @param  object  $user        User table object
+     * @param  string  $newpassword Plaintext password
+     * @return boolean result
+     */
+    public function user_update_password($user, $newpassword) {
+        $user = get_complete_user_data('id', $user->id);
+
+        return update_internal_user_password($user, $newpassword);
     }
 
     /**

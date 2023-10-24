@@ -38,6 +38,14 @@ function auth_wallet_after_require_login() {
         return;
     }
 
+    if (file_exists($CFG->dirroot.'/auth/parent/lib.php')) {
+        require_once($CFG->dirroot.'/auth/parent/lib.php');
+
+        if (auth_parent_is_parent($USER)) {
+            return;
+        }
+
+    }
     $all = get_config('auth_wallet', 'all');
     // Disable redirection in case of another auth plugin.
     if (empty($all) && $USER->auth !== 'wallet') {
@@ -45,7 +53,7 @@ function auth_wallet_after_require_login() {
     }
 
     // Check if first required payment already done.
-    $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $USER);
+    $payconfirm = auth_wallet_is_confirmed($USER);
     if (!empty($payconfirm)) {
         return;
     }
@@ -53,6 +61,7 @@ function auth_wallet_after_require_login() {
     $paymentarea = optional_param('paymentarea', '', PARAM_TEXT);
     $component   = optional_param('component', '', PARAM_RAW);
     $value       = optional_param('value', '', PARAM_FLOAT);
+    $amount      = optional_param('amount', '', PARAM_FLOAT);
     $coupon      = optional_param('coupon', '', PARAM_TEXT);
     $order       = optional_param('order', '', PARAM_RAW);
     $obj         = optional_param('obj', '', PARAM_RAW);
@@ -60,12 +69,15 @@ function auth_wallet_after_require_login() {
     $l           = optional_param('logout', '', PARAM_TEXT);
     $returnto    = optional_param('returnto', '', PARAM_TEXT);
     $data        = optional_param('data', '', PARAM_RAW);
+    $id          = optional_param('id', '', PARAM_INT);
+    $action      = optional_param('action', '', PARAM_TEXT);
 
     // Disable redirection in case of payment process, confirm page, apply coupon or profile edit.
     if (!empty($itemid)
         || !empty($paymentarea)
         || !empty($component)
         || !empty($value)
+        || !empty($amount)
         || !empty($coupon)
         || !empty($order)
         || !empty($s)
@@ -73,6 +85,8 @@ function auth_wallet_after_require_login() {
         || !empty($returnto)
         || !empty($obj)
         || !empty($data)
+        || (!empty($id) && $id == $USER->id)
+        || !empty($action)
         ) {
 
         return;
@@ -93,6 +107,26 @@ function auth_wallet_after_require_login() {
     }
     $confirmationurl = new \moodle_url('/auth/wallet/confirm.php', $params);
     redirect($confirmationurl);
+}
+
+/**
+ * Checks if the user is confirmed by auth_wallet plugin or not.
+ * @param object $user
+ * @return bool
+ */
+function auth_wallet_is_confirmed($user) {
+    global $DB;
+    // Check if the user not signed up using this auth plugin.
+    $all = get_config('auth_wallet', 'all');
+    if (!$all && $user->auth != 'wallet') {
+        return true;
+    }
+    $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
+    if ($payconfirm) {
+        auth_wallet_set_confirmed($user);
+    }
+    $confirmrecord = $DB->record_exists('auth_wallet_confirm', ['userid' => $user->id, 'confirmed' => 1]);
+    return $payconfirm || $confirmrecord;
 }
 
 /**
@@ -123,5 +157,22 @@ function auth_wallet_check_extrafee_validation() {
         set_config('extra_fee', $config->required_balance, 'auth_wallet');
         $error = get_string('extra_fee_error', 'auth_wallet');
         redirect(new moodle_url('/admin/settings.php', ['section' => 'authsettingwallet']), $error, null, 'error');
+    }
+}
+
+/**
+ * Set the user as payment confirmed.
+ * @param object $user
+ * @return void
+ */
+function auth_wallet_set_confirmed($user) {
+    global $DB, $CFG;
+    require_once($CFG->dirroot.'/user/editlib.php');
+    set_user_preference('auth_wallet_balanceconfirm', true, $user);
+    useredit_update_user_preference($user);
+    if ($confirmrecord = $DB->get_record('auth_wallet_confirm', ['userid' => $user->id])) {
+        $DB->update_record('auth_wallet_confirm', (object)['id' => $confirmrecord->id, 'timemodified' => time()]);
+    } else {
+        $DB->insert_record('auth_wallet_confirm', ['userid' => $user->id, 'confirmed' => 1, 'timecreated' => time()]);
     }
 }

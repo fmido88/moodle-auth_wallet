@@ -23,6 +23,7 @@
  */
 
 require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/lib.php');
 require_once($CFG->dirroot.'/user/editlib.php');
 global $DB;
 require_login();
@@ -46,8 +47,7 @@ if (!empty($confirm) && !empty($userids) && confirm_sesskey()) {
     foreach ($userids as $userid) {
         $user = get_complete_user_data('id', $userid);
         if (!empty($user)) {
-            set_user_preference('auth_wallet_balanceconfirm', true, $user);
-            useredit_update_user_preference($user);
+            auth_wallet_set_confirmed($user);
             $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
             $i++;
         }

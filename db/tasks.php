@@ -1,5 +1,5 @@
 <?php
-// This file is part of Moodle - https://moodle.org/
+// This file is part of Moodle - http://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -12,23 +12,29 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and other meta-data are defined here.
+ * Task definition for auth_wallet.
  *
- * @package     auth_wallet
- * @copyright   2023 Mohammad Farouk <phun.for.physics@gmail.com>
- * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package    auth_wallet
+ * @copyright  2023 Mo Farouk <phun.for.physics@gmail.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'auth_wallet';
-$plugin->release = '2.0.0';
-$plugin->version = 2023081508;
-$plugin->requires = 2022112800;
-$plugin->maturity = MATURITY_STABLE;
-$plugin->dependencies = [
-    'enrol_wallet' => 2023071808,
+$tasks = [
+    [
+        'classname' => '\auth_wallet\task\nonconfirmed_cleanup',
+        'blocking'  => 0,
+        'minute'    => '*',
+        'hour'      => '*/4',
+        'day'       => '*',
+        'month'     => '*',
+        'dayofweek' => '*',
+        'disabled'  => 0
+    ],
 ];
+

@@ -24,6 +24,7 @@
 
 require_once(__DIR__ . '/../../config.php');
 require_once(__DIR__.'/auth.php');
+require_once(__DIR__.'/lib.php');
 require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
 require_once($CFG->dirroot . '/login/lib.php');
 require_once($CFG->libdir . '/authlib.php');
@@ -31,9 +32,9 @@ require_once($CFG->dirroot.'/user/editlib.php');
 
 global $SESSION;
 
-$p = optional_param('p', '', PARAM_ALPHANUM);   // Parameter: secret.
-$s = optional_param('s', '', PARAM_RAW);        // Parameter: username.
-$data = optional_param('data', '', PARAM_RAW);
+$p        = optional_param('p', '', PARAM_ALPHANUM);   // Parameter: secret.
+$s        = optional_param('s', '', PARAM_RAW);        // Parameter: username.
+$data     = optional_param('data', '', PARAM_RAW);
 $redirect = optional_param('redirect', '', PARAM_LOCALURL);
 if (empty($redirect)) {
     if (isset($SESSION->wantsurl)) {
@@ -143,7 +144,7 @@ if (!empty($s)) {
 // or confirmation by email is disabled.
 if (!empty($user) && is_object($user)) {
 
-    $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
+    $payconfirm = auth_wallet_is_confirmed($user);
 
     if (empty($user->suspended)) {
 
@@ -200,16 +201,14 @@ if (!empty($user) && is_object($user)) {
                         throw new moodle_exception('insufficientbalance');
                     }
                 }
-                set_user_preference('auth_wallet_balanceconfirm', true, $user);
-                useredit_update_user_preference($user);
+                auth_wallet_set_confirmed($user);
                 redirect($url);
 
             } else if ($confirmmethod === 'fee' && $balance >= $fee) {
                 if (empty($payconfirm)) {
                     $transactions->debit($user->id, $fee, 'New user fee');
                 }
-                set_user_preference('auth_wallet_balanceconfirm', true, $user);
-                useredit_update_user_preference($user);
+                auth_wallet_set_confirmed($user);
                 redirect($url);
             } else {
                 // Display the payment page.
