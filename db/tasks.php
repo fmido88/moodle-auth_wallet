@@ -29,7 +29,7 @@ $tasks = [
     [
         'classname' => '\auth_wallet\task\nonconfirmed_cleanup',
         'blocking'  => 0,
-        'minute'    => '*',
+        'minute'    => '0',
         'hour'      => '*/4',
         'day'       => '*',
         'month'     => '*',

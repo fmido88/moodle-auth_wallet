@@ -35,12 +35,12 @@ global $SESSION;
 $p        = optional_param('p', '', PARAM_ALPHANUM);   // Parameter: secret.
 $s        = optional_param('s', '', PARAM_RAW);        // Parameter: username.
 $data     = optional_param('data', '', PARAM_RAW);
-$redirect = optional_param('redirect', '', PARAM_LOCALURL);
+$redirect = optional_param('redirect', '', PARAM_URL);
 if (empty($redirect)) {
     if (isset($SESSION->wantsurl)) {
-        $redirect = new moodle_url($SESSION->wantsurl);
+        $redirect = (new moodle_url($SESSION->wantsurl))->out(false);
     } else if ($base = get_user_preferences('auth_wallet_wantsurl', false)) {
-        $redirect = new moodle_url($base);
+        $redirect = (new moodle_url($base))->out(false);
     } else {
         $redirect = core_login_get_return_url();
     }
@@ -81,7 +81,9 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
     }
 
     $user = get_complete_user_data('username', $username);
-
+    if (!$user || isguestuser($user)) {
+        throw new \moodle_exception('cannotfinduser', '', '', s($username));
+    }
     $confirmed = $authplugin->user_confirm($username, $usersecret);
     if ($confirmed == AUTH_CONFIRM_ALREADY) {
 
@@ -97,12 +99,7 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
         exit;
 
     } else if ($confirmed == AUTH_CONFIRM_OK) {
-
         // The user has confirmed successfully, let's log them in.
-        if (!$user) {
-            throw new \moodle_exception('cannotfinduser', '', '', s($username));
-        }
-
         if (empty($user->suspended)) {
             complete_user_login($user);
 
@@ -129,7 +126,8 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
         echo $OUTPUT->footer();
         exit;
     } else if ($confirmed == AUTH_CONFIRM_ERROR) {
-        throw new \moodle_exception('invalidconfirmdata');
+        debugging('Confirmation Error.', DEBUG_NONE);
+        redirect(new moodle_url('/login/index.php'), get_string('invalidconfirmdata'), null, 'error');
     }
 }
 
@@ -137,12 +135,10 @@ if (!empty($s)) {
     $user = get_complete_user_data('username', $s);
 } else {
     global $USER;
-    $user = get_complete_user_data('id', $USER->id);
+    $user = fullclone($USER);
 }
 
-// Reaching this part of the code means either the user confirmed by email already and wait payment confirmation,
-// or confirmation by email is disabled.
-if (!empty($user) && is_object($user)) {
+if (!empty($user) && is_object($user) && !isguestuser($user)) {
 
     $payconfirm = auth_wallet_is_confirmed($user);
 
@@ -150,8 +146,9 @@ if (!empty($user) && is_object($user)) {
 
         if (!empty($user->confirmed)
             || empty($emailconfirm)
-            || empty($user->confirm)
             || $user->auth != 'wallet') {
+            // Reaching this part of the code means either the user confirmed by email already and wait payment confirmation,
+            // or confirmation by email is disabled.
 
             // Prepare redirection url.
             if (!empty($user->confirmed)) {
@@ -165,50 +162,20 @@ if (!empty($user) && is_object($user)) {
                     $DB->set_field('user', 'secret', $user->secret, ['id' => $user->id]);
                 }
                 $params['p'] = $user->secret;
-
+                $params['redirect'] = $redirect;
                 $url = new \moodle_url('/auth/wallet/confirm.php', $params);
             }
 
             // Login the user to enable payment.
             if (!isloggedin() || empty($user->id)) {
-                complete_user_login($user);
-
-                if (empty($user->id)) {
-                    global $USER;
-                    $user = get_complete_user_data('id', $USER->id);
-                }
+                $user = complete_user_login($user);
 
                 \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
             }
 
             require_login();
 
-            $transactions = new enrol_wallet\transactions;
-
-            $balance       = $transactions->get_user_balance($user->id);
-            $confirmmethod = get_config('auth_wallet', 'criteria');
-            $required      = get_config('auth_wallet', 'required_balance');
-            $fee           = get_config('auth_wallet', 'required_fee');
-            $extrafee      = get_config('auth_wallet', 'extra_fee');
-
-            if ($confirmmethod === 'balance' && $balance >= $required) {
-                if (!empty($extrafee)) {
-                    if ($balance >= $extrafee) {
-                        if (empty($payconfirm)) {
-                            $transactions->debit($user->id, $extrafee);
-                        }
-                    } else {
-                        throw new moodle_exception('insufficientbalance');
-                    }
-                }
-                auth_wallet_set_confirmed($user);
-                redirect($url);
-
-            } else if ($confirmmethod === 'fee' && $balance >= $fee) {
-                if (empty($payconfirm)) {
-                    $transactions->debit($user->id, $fee, 'New user fee');
-                }
-                auth_wallet_set_confirmed($user);
+            if (!empty($payconfirm)) {
                 redirect($url);
             } else {
                 // Display the payment page.
@@ -225,6 +192,7 @@ if (!empty($user) && is_object($user)) {
                     'extrafee' => !empty($extrafee) ? get_string('extrafeerequired', 'auth_wallet', $extrafee) : '',
                 ];
 
+                $confirmmethod = get_config('auth_wallet', 'criteria');
                 if ($confirmmethod === 'balance') {
                     echo get_string('payment_required', 'auth_wallet', $a);
                     echo enrol_wallet_display_topup_options();
@@ -243,8 +211,7 @@ if (!empty($user) && is_object($user)) {
             }
         }
     }
-    redirect($redirect);
-
-} else {
-    throw new \moodle_exception("errorwhenconfirming");
 }
+
+// Not recognized user, suspended user or not confirmed by email yet.
+redirect(new moodle_url('/login/index.php'), get_string('errorwhenconfirming'), null, 'error');

@@ -25,7 +25,6 @@
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir.'/authlib.php');
-use enrol_wallet\transactions;
 
 // For further information about authentication plugins please read
 // https://docs.moodle.org/dev/Authentication_plugins.
@@ -95,11 +94,6 @@ class auth_plugin_wallet extends auth_plugin_base {
             $user->calendartype = $CFG->calendartype;
         }
 
-        if (!$DB->record_exists('auth_wallet_confirm', ['userid' => $user->id])) {
-            $params = ['userid' => $user->id, 'confirmed' => 0, 'timecreated' => time()];
-            $DB->insert_record('auth_wallet_confirm', $params);
-        }
-
         // Check if the user already existed.
         $exist = get_complete_user_data('username', $user->username);
         if (empty($exist->id)) {
@@ -110,6 +104,13 @@ class auth_plugin_wallet extends auth_plugin_base {
 
             // Save any custom profile field information.
             profile_save_data($user);
+        } else {
+            $user->id = $exist->id;
+        }
+
+        if (!$DB->record_exists('auth_wallet_confirm', ['userid' => $user->id])) {
+            $params = ['userid' => $user->id, 'timecreated' => time(), 'timemodified' => time()];
+            $DB->insert_record('auth_wallet_confirm', $params);
         }
 
         // Save wantsurl against user's profile, so we can return them there upon confirmation.
@@ -159,50 +160,28 @@ class auth_plugin_wallet extends auth_plugin_base {
         $user = get_complete_user_data('username', $username);
 
         if (!empty($user)) {
-            $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
-            $all = get_config('auth_wallet', 'all');
+            $payconfirm = auth_wallet_is_confirmed($user);
+            $all = $this->config->all;
 
             $verified = empty($user->secret) || $user->secret === $confirmsecret;
             if (empty($all) && $user->auth != 'wallet') {
-                return AUTH_CONFIRM_ERROR;
+                return AUTH_CONFIRM_OK;
 
             } else if ($user->confirmed && !empty($payconfirm)) {
                 return AUTH_CONFIRM_ALREADY;
 
-            } else if ($verified && !empty($payconfirm)) {
-                $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
-                return AUTH_CONFIRM_OK;
-
-            } else if ($verified && empty($payconfirm)) {
-
-                $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
-
-                $required = $this->config->required_balance;
-                $balance  = transactions::get_user_balance($user->id);
-                $method   = $this->config->criteria;
-                $fee      = $this->config->required_fee;
-                $extrafee = $this->config->extra_fee;
-
-                // Check if the user balance is sufficient.
-                if ($method == 'balance' && $balance < $required) {
-                    return AUTH_CONFIRM_FAIL;
-                } else if ($method == 'balance' && !empty($extrafee) && $balance >= $required) {
-                    $desc = get_string('debitextrafee_desc', 'auth_wallet');
-                    transactions::debit($user->id, $extrafee, '', '', $desc);
+            } else if ($verified) {
+                if (!$user->confirmed) {
+                    $DB->set_field("user", "confirmed", 1, ["id" => $user->id]);
+                    $user->confirmed = true;
                 }
 
-                // Check if the method depend on paying a confirm fee and not confirmed yet.
-                if ($method === 'fee') {
-                    // Check if there already enough balance for paying the fee.
-                    if ($method === 'fee' && $balance >= $fee) {
-                        $desc = get_string('debitfee_desc', 'auth_wallet');
-                        transactions::debit($user->id, $fee, '', '', $desc);
-                    } else {
-                        return AUTH_CONFIRM_FAIL;
-                    }
+                if (!$payconfirm) {
+                    return AUTH_CONFIRM_FAIL;
                 }
 
                 auth_wallet_set_confirmed($user);
+
                 if ($wantsurl = get_user_preferences('auth_wallet_wantsurl', false, $user)) {
                     // Ensure user gets returned to page they were trying to access before signing up.
                     $SESSION->wantsurl = $wantsurl;

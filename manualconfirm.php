@@ -35,17 +35,18 @@ $PAGE->set_url($baseurl);
 $context = context_system::instance();
 $PAGE->set_context($context);
 
-$PAGE->set_title(get_string('manual_confirm', 'auth_wallet'));
-$PAGE->set_heading(get_string('manual_confirm', 'auth_wallet'));
+$title = get_string('manual_confirm', 'auth_wallet');
+$PAGE->set_title($title);
+$PAGE->set_heading($title);
 $PAGE->set_pagelayout('admin');
 
 $confirm = optional_param('confirm', '', PARAM_BOOL);
-$userids = optional_param_array('userids', '', PARAM_INT);
+$userids = optional_param_array('userids', null, PARAM_INT);
 if (!empty($confirm) && !empty($userids) && confirm_sesskey()) {
     $i = 0;
 
     foreach ($userids as $userid) {
-        $user = get_complete_user_data('id', $userid);
+        $user = core_user::get_user($userid);
         if (!empty($user)) {
             auth_wallet_set_confirmed($user);
             $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
