@@ -64,3 +64,6 @@ $string['settingerror'] = 'Configuration error, please contact support.';
 $string['usersconfirmed'] = '{$a} user(s) has been confirmed.';
 $string['wallet:manualconfirm'] = 'Manually confirm wallet signup users';
 $string['cleanup_nonconfirmed'] = 'Cleanup non-confirmed users by wallet balance';
+$string['privacy:metadata:auth_wallet_confirm'] = 'Signup with Wallet Balance Confirm plugin store user\'s metadata to check if the user confirmed by payment or not.';
+$string['privacy:metadata:auth_wallet_confirm:userid'] = 'The user id.';
+$string['privacy:metadata:auth_wallet_confirm:confirmed'] = 'If the user is confirmed or not yet.';
