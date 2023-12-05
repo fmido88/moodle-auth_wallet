@@ -141,12 +141,16 @@ if (!empty($s)) {
 if (!empty($user) && is_object($user) && !isguestuser($user)) {
 
     $payconfirm = auth_wallet_is_confirmed($user);
-
+    $all = get_config('auth_wallet', 'all');
     if (empty($user->suspended)) {
 
         if (!empty($user->confirmed)
-            || empty($emailconfirm)
-            || $user->auth != 'wallet') {
+            || empty($emailconfirm) 
+                && (
+                    $user->auth == 'wallet'
+                    || (!empty($all) && empty($user->secret))
+                )
+            ) {
             // Reaching this part of the code means either the user confirmed by email already and wait payment confirmation,
             // or confirmation by email is disabled.
 
@@ -176,6 +180,7 @@ if (!empty($user) && is_object($user) && !isguestuser($user)) {
             require_login();
 
             if (!empty($payconfirm)) {
+                // Already confirmed by payment.
                 redirect($url);
             } else {
                 // Display the payment page.
