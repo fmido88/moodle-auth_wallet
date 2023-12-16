@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'auth_wallet';
-$plugin->release = '2.5.0';
-$plugin->version = 2023112600;
+$plugin->release = '2.6.0';
+$plugin->version = 2023121700;
 $plugin->requires = 2022112800;
 $plugin->maturity = MATURITY_STABLE;
 $plugin->dependencies = [
