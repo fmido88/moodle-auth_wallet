@@ -101,6 +101,7 @@ function auth_wallet_after_require_login() {
 
 /**
  * Should the passed url directed or not.
+ * @param moodle_url $url
  * @return bool
  */
 function auth_wallet_should_redirect(moodle_url $url) {
