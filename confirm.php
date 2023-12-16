@@ -68,7 +68,8 @@ if (empty($all)) {
 }
 
 $authplugin = new auth_plugin_wallet();
-
+// Part 1 of the code after pressing the confirmation link in email.
+// Or redirected from the same page if email confirmation not required or already confirmed.
 if ((!empty($p) && !empty($s)) || !empty($data)) {
 
     if (!empty($data)) {
@@ -84,7 +85,11 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
     if (!$user || isguestuser($user)) {
         throw new \moodle_exception('cannotfinduser', '', '', s($username));
     }
+
+    // Check confirmation validation.
     $confirmed = $authplugin->user_confirm($username, $usersecret);
+
+    // User already confirmed.
     if ($confirmed == AUTH_CONFIRM_ALREADY) {
 
         $PAGE->navbar->add(get_string("alreadyconfirmed"));
@@ -98,7 +103,7 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
         echo $OUTPUT->footer();
         exit;
 
-    } else if ($confirmed == AUTH_CONFIRM_OK) {
+    } else if ($confirmed == AUTH_CONFIRM_OK) { // Confirmation validated successfully.
         // The user has confirmed successfully, let's log them in.
         if (empty($user->suspended)) {
             complete_user_login($user);
@@ -126,29 +131,49 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
         echo $OUTPUT->footer();
         exit;
     } else if ($confirmed == AUTH_CONFIRM_ERROR) {
+        // Error while confirming.
+        // TODO throw error.
         debugging('Confirmation Error.', DEBUG_NONE);
         redirect(new moodle_url('/login/index.php'), get_string('invalidconfirmdata'), null, 'error');
     }
+    // If AUTH_CONFIRM_FAIL means that the user not confirmed yet, go to part 2 of the code.
 }
 
-if (!empty($s)) {
-    $user = get_complete_user_data('username', $s);
-} else {
+// Part 2 of the code.
+// The user confirmed by email or not required for confirmation.
+// This will display the payment options.
+
+// Get username from the passed parameters.
+if (!empty($data)) {
+    $dataelements = explode('/', $data, 2); // Stop after 1st slash. Rest is username.
+    $username   = $dataelements[1];
+} else if (!empty($s)) {
+    $username   = $s;
+}
+
+// Or just check if the user already loggedin for payments.
+if (!empty($username)) {
+    $user = get_complete_user_data('username', $username);
+} else if (isloggedin() && !isguestuser()) {
     global $USER;
     $user = fullclone($USER);
 }
 
 if (!empty($user) && is_object($user) && !isguestuser($user)) {
 
+    // Check if the user already confirmed by payments or not.
     $payconfirm = auth_wallet_is_confirmed($user);
     $all = get_config('auth_wallet', 'all');
     if (empty($user->suspended)) {
 
         if (!empty($user->confirmed)
-            || empty($emailconfirm) 
+            || empty($emailconfirm) // The user already confirmed by email or not required.
                 && (
-                    $user->auth == 'wallet'
-                    || (!empty($all) && empty($user->secret))
+                    $user->auth == 'wallet' // This user auth must be wallet.
+                    || ( // Or any other auth but with configuration all enabled.
+                        !empty($all)
+                        && (empty($user->secret) || !empty($user->confirmed))
+                        )
                 )
             ) {
             // Reaching this part of the code means either the user confirmed by email already and wait payment confirmation,
@@ -177,40 +202,56 @@ if (!empty($user) && is_object($user) && !isguestuser($user)) {
                 \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
             }
 
-            require_login();
+            require_login(null, false);
 
             if (!empty($payconfirm)) {
                 // Already confirmed by payment.
+                // Redirect to set them confirmed.
                 redirect($url);
             } else {
                 // Display the payment page.
                 $PAGE->set_title($COURSE->fullname);
                 $PAGE->set_heading($COURSE->fullname);
+
                 echo $OUTPUT->header();
+
                 echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
+                $balance = \enrol_wallet\transactions::get_user_balance($user->id);
+                $confirmmethod = get_config('auth_wallet', 'criteria');
+
                 $a = [
                     'balance'  => $balance,
-                    'required' => $required,
-                    'rest'     => $required - $balance,
                     'currency' => get_config('enrol_wallet', 'currency'),
                     'name'     => fullname($user),
-                    'extrafee' => !empty($extrafee) ? get_string('extrafeerequired', 'auth_wallet', $extrafee) : '',
                 ];
 
                 $confirmmethod = get_config('auth_wallet', 'criteria');
-                if ($confirmmethod === 'balance') {
+
+                if ($confirmmethod === 'balance') { // Minimum balance required.
+                    $extrafee = get_config('auth_wallet', 'extra_fee');
+                    $a['required'] = get_config('auth_wallet', 'required_balance');
+                    $a['rest'] = ($a['required'] - $balance);
+                    $a['extrafee'] = !empty($extrafee) ? get_string('extrafeerequired', 'auth_wallet', $extrafee) : '';
                     echo get_string('payment_required', 'auth_wallet', $a);
                     echo enrol_wallet_display_topup_options();
-                } else if ($confirmmethod === 'fee') {
+
+                } else if ($confirmmethod === 'fee') { // Signup fee reqired.
+
+                    $a['required'] = get_config('auth_wallet', 'required_fee');
+                    $a['rest'] = ($a['required'] - $balance);
+
                     echo get_string('fee_required', 'auth_wallet', $a);
                     echo enrol_wallet_display_topup_options();
-                } else {
-                    echo $OUTPUT->notification(get_string('settingerror', 'auth_wallet'), 'error');
+
+                } else { // Shouldn't happen.
+                    echo $OUTPUT->notification(get_string('settingerror', 'auth_wallet'), 'error', false);
                 }
 
                 $url = new \moodle_url('/auth/wallet/confirm.php', ['logout' => 1]);
                 echo $OUTPUT->single_button($url, get_string('logout'));
+
                 echo $OUTPUT->box_end();
+
                 echo $OUTPUT->footer();
                 exit;
             }

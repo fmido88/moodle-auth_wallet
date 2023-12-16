@@ -22,7 +22,7 @@
  */
 namespace auth_wallet\privacy;
 
-use \core_privacy\local\metadata\collection;
+use core_privacy\local\metadata\collection;
 /**
  * Privacy Subsystem for auth_wallet implementing null_provider.
  *
@@ -38,7 +38,7 @@ class provider implements \core_privacy\local\metadata\provider,
      * @return  string
      */
     public static function get_metadata(collection $collection) : collection {
-        $collection->add_database_table('auth_wallet_confirm',[
+        $collection->add_database_table('auth_wallet_confirm', [
             'userid' => 'privacy:metadata:auth_wallet_confirm:userid',
             'confirmed' => 'privacy:metadata:auth_wallet_confirm:confirmed',
         ], 'privacy:metadata:auth_wallet_confirm');

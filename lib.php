@@ -108,12 +108,12 @@ function auth_wallet_should_redirect(moodle_url $url) {
     $wwwroot = new moodle_url($CFG->wwwroot);
     $paths = [
         'user/view.php', // Any editing or viewing for profile pages.
+        'user/profile.php',
         'user/edit.php',
         'user/editadvanced.php',
         'auth/wallet/confirm.php', // Confirmation page.
-        'payment/gateway', // Any payment gateway file for payments.
-        'login/logout.php', // Logging out or logging in pages.
-        'login/index.php',
+        'payment/gateway', // Any payment gateway page for payments.
+        'login', // Logging out or logging in pages.
         'enrol/wallet', // Enrol wallet action pages.
     ];
     if ($wwwroot->get_host() !== $url->get_host()) {
@@ -126,39 +126,6 @@ function auth_wallet_should_redirect(moodle_url $url) {
         || stripos($path, $url->get_path()) !== false) {
             return false;
         }
-    }
-
-    $itemid      = optional_param('itemid', '', PARAM_INT);
-    $paymentarea = optional_param('paymentarea', '', PARAM_TEXT);
-    $component   = optional_param('component', '', PARAM_RAW);
-    $value       = optional_param('value', '', PARAM_FLOAT);
-    $amount      = optional_param('amount', '', PARAM_FLOAT);
-    $coupon      = optional_param('coupon', '', PARAM_TEXT);
-    $order       = optional_param('order', '', PARAM_RAW);
-    $obj         = optional_param('obj', '', PARAM_RAW);
-    $s           = optional_param('s', '', PARAM_TEXT);
-    $l           = optional_param('logout', '', PARAM_TEXT);
-    $returnto    = optional_param('returnto', '', PARAM_TEXT);
-    $data        = optional_param('data', '', PARAM_RAW);
-    $action      = optional_param('action', '', PARAM_TEXT);
-
-    // Disable redirection in case of payment process, confirm page, apply coupon or profile edit.
-    if (!empty($itemid)
-        || !empty($paymentarea)
-        || !empty($component)
-        || !empty($value)
-        || !empty($amount)
-        || !empty($coupon)
-        || !empty($order)
-        || !empty($s)
-        || !empty($l)
-        || !empty($returnto)
-        || !empty($obj)
-        || !empty($data)
-        || !empty($action)
-        ) {
-
-        return false;
     }
 
     return true;

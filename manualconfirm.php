@@ -49,7 +49,7 @@ if (!empty($confirm) && !empty($userids) && confirm_sesskey()) {
         $user = core_user::get_user($userid);
         if (!empty($user)) {
             auth_wallet_set_confirmed($user);
-            $DB->set_field("user", "confirmed", 1, array("id" => $user->id));
+            $DB->set_field("user", "confirmed", 1, ["id" => $user->id]);
             $i++;
         }
     }
@@ -70,7 +70,7 @@ $options = [
     'courseid'   => SITEID,
     'enrolid'    => 0,
     'perpage'    => $CFG->maxusersperpage,
-    'userfields' => implode(',', \core_user\fields::get_identity_fields($context, true))
+    'userfields' => implode(',', \core_user\fields::get_identity_fields($context, true)),
 ];
 $mform->addElement('autocomplete', 'userids', get_string('selectusers', 'enrol_manual'), [], $options);
 $mform->addRule('userids', 'select user', 'required', null, 'client');

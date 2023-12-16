@@ -48,7 +48,7 @@ if ($ADMIN->fulltree) {
                                                 get_string('applytoall_desc', 'auth_wallet'), 0));
     $options = [
         'balance' => get_string('balance_required', 'auth_wallet'),
-        'fee' => get_string('feerequired', 'auth_wallet')
+        'fee' => get_string('feerequired', 'auth_wallet'),
     ];
     $settings->add(new admin_setting_configselect('auth_wallet/criteria',
                                                 get_string('confirmcriteria', 'auth_wallet'),

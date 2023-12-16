@@ -164,7 +164,7 @@ class auth_plugin_wallet extends auth_plugin_base {
             $all = $this->config->all;
 
             $verified = empty($user->secret) || $user->secret === $confirmsecret;
-            if (empty($all) && $user->auth != 'wallet') {
+            if (empty($all) && $user->auth !== 'wallet') {
                 return AUTH_CONFIRM_OK;
 
             } else if ($user->confirmed && !empty($payconfirm)) {
