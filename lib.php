@@ -44,6 +44,17 @@ function auth_wallet_after_config() {
 }
 
 /**
+ * Add user bulk action for confirming users.
+ * @return array[action_link]
+ */
+function auth_wallet_bulk_user_actions() {
+    $url = new moodle_url('/auth/wallet/bulkconfirm.php');
+    $label = get_string('bulk_user_confirm', 'auth_wallet');
+    return [
+        'auth_wallet_bulk_confirm' => new action_link($url, $label),
+    ];
+}
+/**
  * Fire up each time require_login() called and redirect non-confirmed users to confirm page.
  * @return void
  */
@@ -182,7 +193,8 @@ function auth_wallet_check_conditions($user) {
     }
 
     $required = $config->required_balance;
-    $balance  = enrol_wallet\transactions::get_user_balance($user->id);
+    $op = new enrol_wallet\util\balance_op($user->id);
+    $balance  = $op->get_total_balance();
     $method   = $config->criteria;
     $fee      = $config->required_fee;
     $extrafee = $config->extra_fee;
@@ -191,12 +203,10 @@ function auth_wallet_check_conditions($user) {
     if ($method == 'balance' && $balance >= $required && empty($extrafee)) {
         return true;
     } else if ($method == 'balance' && $balance >= $required) {
-        $desc = get_string('debitextrafee_desc', 'auth_wallet');
-        enrol_wallet\transactions::debit($user->id, $extrafee, '', '', $desc);
+        $op->debit($extrafee, $op::D_AUTH_EXTRA_FEE);
         return true;
     } else if ($method === 'fee' && $balance >= $fee) {
-        $desc = get_string('debitfee_desc', 'auth_wallet');
-        enrol_wallet\transactions::debit($user->id, $fee, '', '', $desc);
+        $op->debit($fee, $op::D_AUTH_FEE);
         return true;
     }
 

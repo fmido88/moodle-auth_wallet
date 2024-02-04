@@ -24,6 +24,7 @@
 
 namespace auth_wallet\task;
 
+use enrol_wallet\util\balance;
 /**
  * Clean up non-confirmed users.
  */
@@ -51,6 +52,9 @@ class nonconfirmed_cleanup extends \core\task\scheduled_task {
             return;
         }
 
+        $gift = get_config('enrol_wallet', 'newusergift');
+        $giftvalue = get_config('enrol_wallet', 'newusergiftvalue');
+
         $intval = $CFG->deleteunconfirmed * 60 * 60;
 
         \core_php_time_limit::raise();
@@ -71,8 +75,19 @@ class nonconfirmed_cleanup extends \core\task\scheduled_task {
                     $trace->output('User with id ' . $user->id . ' already confirmed and skipped...');
                     continue;
                 }
+                $helper = new balance($user->id);
+                $balance = $helper->get_total_balance();
+                $free = $helper->get_total_free();
+                if (!empty($balance) && $balance > $free) {
+                    if (!$gift || ($gift + $balance > $giftvalue)) {
+                        $trace->output('User with id '. $user->id . ' has a balance of '. $balance .', so not deleted.');
+                        continue;
+                    }
+                }
+
                 user_delete_user($user);
             }
+
             $DB->delete_records('auth_wallet_confirm', ['userid' => $record->userid]);
             $trace->output('user with id ' . $record->userid . ' has been deleted...');
         }

@@ -83,7 +83,7 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
 
     $user = get_complete_user_data('username', $username);
     if (!$user || isguestuser($user)) {
-        throw new \moodle_exception('cannotfinduser', '', '', s($username));
+        throw new \moodle_exception('invalidconfirmdata', '', '', s($username));
     }
 
     // Check confirmation validation.
@@ -132,9 +132,9 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
         exit;
     } else if ($confirmed == AUTH_CONFIRM_ERROR) {
         // Error while confirming.
-        // TODO throw error.
-        debugging('Confirmation Error.', DEBUG_NONE);
-        redirect(new moodle_url('/login/index.php'), get_string('invalidconfirmdata'), null, 'error');
+        // NOTE throw error.
+        debugging('Confirmation Error.');
+        redirect(new moodle_url('/login/index.php'), get_string('invalidconfirmdata', 'error'), null, 'error');
     }
     // If AUTH_CONFIRM_FAIL means that the user not confirmed yet, go to part 2 of the code.
 }
@@ -216,7 +216,7 @@ if (!empty($user) && is_object($user) && !isguestuser($user)) {
                 echo $OUTPUT->header();
 
                 echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
-                $balance = \enrol_wallet\transactions::get_user_balance($user->id);
+                $balance = (new enrol_wallet\util\balance($user->id))->get_total_balance();
                 $confirmmethod = get_config('auth_wallet', 'criteria');
 
                 $a = [
