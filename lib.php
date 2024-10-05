@@ -127,6 +127,7 @@ function auth_wallet_should_redirect(moodle_url $url) {
         'payment/gateway', // Any payment gateway page for payments.
         'login', // Logging out or logging in pages.
         'enrol/wallet', // Enrol wallet action pages.
+        'blocks/vc', // Vodafone cash & instapay block.
     ];
     if ($wwwroot->get_host() !== $url->get_host()) {
         // Any non local pages.
