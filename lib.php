@@ -59,14 +59,18 @@ function auth_wallet_bulk_user_actions() {
  * @return void
  */
 function auth_wallet_after_require_login() {
-    global $USER, $CFG, $FULLME;
+    global $USER, $CFG, $FULLME, $SESSION;
     require_once($CFG->dirroot . '/enrol/wallet/locallib.php');
     require_once($CFG->dirroot.'/login/lib.php');
     if (!isloggedin() || isguestuser() || is_siteadmin()) {
         return;
     }
 
-    if (AJAX_SCRIPT) {
+    if (AJAX_SCRIPT || CLI_SCRIPT || WS_SERVER) {
+        return;
+    }
+
+    if (!empty($SESSION->auth_wallet_confirmed)) {
         return;
     }
 
@@ -150,16 +154,21 @@ function auth_wallet_should_redirect(moodle_url $url) {
  * @return bool
  */
 function auth_wallet_is_confirmed($user) {
-    global $DB;
+    global $DB, $SESSION;
+    if (!empty($SESSION->auth_wallet_confirmed)) {
+        return true;
+    }
     // Check if the user not signed up using this auth plugin.
     $all = get_config('auth_wallet', 'all');
     if (!$all && $user->auth != 'wallet') {
+        $SESSION->auth_wallet_confirmed = true;
         return true;
     }
 
     $payconfirm = get_user_preferences('auth_wallet_balanceconfirm', false, $user);
     if ($payconfirm) {
         auth_wallet_set_confirmed($user);
+        $SESSION->auth_wallet_confirmed = true;
         return true;
     }
 
@@ -168,8 +177,11 @@ function auth_wallet_is_confirmed($user) {
     if (!$confirmrecord) {
         if (auth_wallet_check_conditions($user)) {
             auth_wallet_set_confirmed($user);
+            $SESSION->auth_wallet_confirmed = true;
             return true;
         }
+    } else {
+        $SESSION->auth_wallet_confirmed = true;
     }
 
     return $confirmrecord;
@@ -234,7 +246,7 @@ function auth_wallet_check_extrafee_validation() {
  * @return void
  */
 function auth_wallet_set_confirmed($user) {
-    global $DB, $CFG;
+    global $DB, $CFG, $SESSION;
     require_once($CFG->dirroot.'/user/editlib.php');
     $DB->set_field("user", "confirmed", 1, ["id" => $user->id]);
     set_user_preference('auth_wallet_balanceconfirm', true, $user);
@@ -252,4 +264,5 @@ function auth_wallet_set_confirmed($user) {
         $recorddata['timecreated'] = $now;
         $DB->insert_record('auth_wallet_confirm', (object)$recorddata);
     }
+    $SESSION->auth_wallet_confirmed = true;
 }

@@ -27,7 +27,6 @@ defined('MOODLE_INTERNAL') || die;
 require_once(__DIR__.'/lib.php');
 
 if ($ADMIN->fulltree) {
-
     // Introductory explanation.
     $settings->add(new admin_setting_heading('auth_wallet/pluginname', '',
                                                 get_string('auth_walletdescription', 'auth_wallet')));
@@ -38,9 +37,10 @@ if ($ADMIN->fulltree) {
     $settings->add(new admin_setting_configcheckbox('auth_wallet/all',
                                                 get_string('applytoall', 'auth_wallet'),
                                                 get_string('applytoall_desc', 'auth_wallet'), 0));
+
     $options = [
         'balance' => get_string('balance_required', 'auth_wallet'),
-        'fee' => get_string('feerequired', 'auth_wallet'),
+        'fee'     => get_string('feerequired', 'auth_wallet'),
     ];
     $settings->add(new admin_setting_configselect('auth_wallet/criteria',
                                                 get_string('confirmcriteria', 'auth_wallet'),

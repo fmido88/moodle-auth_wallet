@@ -37,4 +37,14 @@ class callbacks {
 
         $hook->add_action('auth_wallet_bulk_confirm', new \action_link($url, $label));
     }
+    /**
+     * Check if the user is confirmed or not.
+     * @param \core\hook\after_config $hook
+     * @return void
+     */
+    public static function after_config(\core\hook\after_config $hook) {
+        global $CFG;
+        require_once($CFG->dirroot . '/auth/wallet/lib.php');
+        auth_wallet_after_require_login();
+    }
 }

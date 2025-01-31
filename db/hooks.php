@@ -29,4 +29,8 @@ $callbacks = [
         'hook' => core_user\hook\extend_bulk_user_actions::class,
         'callback' => [auth_wallet\callbacks::class, 'bulk_user_actions'],
     ],
+    [
+        'hook'     => core\hook\after_config::class,
+        'callback' => [auth_wallet\callbacks::class, 'after_config'],
+    ],
 ];
