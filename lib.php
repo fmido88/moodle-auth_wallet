@@ -133,6 +133,7 @@ function auth_wallet_should_redirect(moodle_url $url) {
         'enrol/wallet', // Enrol wallet action pages.
         'blocks/vc', // Vodafone cash & instapay block.
     ];
+
     if ($wwwroot->get_host() !== $url->get_host()) {
         // Any non local pages.
         return false;

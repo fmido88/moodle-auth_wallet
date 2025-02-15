@@ -30,8 +30,6 @@ require_once($CFG->dirroot . '/login/lib.php');
 require_once($CFG->libdir . '/authlib.php');
 require_once($CFG->dirroot.'/user/editlib.php');
 
-global $SESSION;
-
 $p        = optional_param('p', '', PARAM_ALPHANUM);   // Parameter: secret.
 $s        = optional_param('s', '', PARAM_RAW);        // Parameter: username.
 $data     = optional_param('data', '', PARAM_RAW);
@@ -89,54 +87,66 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
     // Check confirmation validation.
     $confirmed = $authplugin->user_confirm($username, $usersecret);
 
-    // User already confirmed.
-    if ($confirmed == AUTH_CONFIRM_ALREADY) {
+    switch($confirmed) {
+        case AUTH_CONFIRM_ALREADY:
+        case AUTH_CONFIRM_OK:
+            // The user has confirmed successfully, let's log them in.
+            if (empty($user->suspended)) {
+                if (!isloggedin() || isguestuser() || $USER->id != $user->id) {
+                    complete_user_login($user);
 
-        $PAGE->navbar->add(get_string("alreadyconfirmed"));
-        $PAGE->set_title(get_string("alreadyconfirmed"));
-        $PAGE->set_heading($COURSE->fullname);
-        echo $OUTPUT->header();
-        echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
-        echo "<p>".get_string("alreadyconfirmed")."</p>\n";
-        echo $OUTPUT->single_button(core_login_get_return_url(), get_string('courses'));
-        echo $OUTPUT->box_end();
-        echo $OUTPUT->footer();
-        exit;
-
-    } else if ($confirmed == AUTH_CONFIRM_OK) { // Confirmation validated successfully.
-        // The user has confirmed successfully, let's log them in.
-        if (empty($user->suspended)) {
-            complete_user_login($user);
-
-            \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
-
-            // Check where to go, $redirect has a higher preference.
-            if (!empty($redirect)) {
-                if (!empty($SESSION->wantsurl)) {
-                    unset($SESSION->wantsurl);
+                    \core\session\manager::apply_concurrent_login_limit($user->id, session_id());    
                 }
-                redirect($redirect);
-            }
-        }
 
-        $PAGE->navbar->add(get_string("confirmed"));
-        $PAGE->set_title(get_string("confirmed"));
-        $PAGE->set_heading($COURSE->fullname);
-        echo $OUTPUT->header();
-        echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
-        echo "<h3>".get_string("thanks").", ". fullname($USER) . "</h3>\n";
-        echo "<p>".get_string("confirmed")."</p>\n";
-        echo $OUTPUT->single_button(core_login_get_return_url(), get_string('continue'));
-        echo $OUTPUT->box_end();
-        echo $OUTPUT->footer();
-        exit;
-    } else if ($confirmed == AUTH_CONFIRM_ERROR) {
-        // Error while confirming.
-        // NOTE throw error.
-        debugging('Confirmation Error.');
-        redirect(new moodle_url('/login/index.php'), get_string('invalidconfirmdata', 'error'), null, 'error');
+                // Check where to go, $redirect has a higher preference.
+                if (!empty($redirect)) {
+                    if (!empty($SESSION->wantsurl)) {
+                        unset($SESSION->wantsurl);
+                    }
+                    redirect($redirect);
+                }
+            }
+            break;
+        default:
     }
-    // If AUTH_CONFIRM_FAIL means that the user not confirmed yet, go to part 2 of the code.
+
+    switch ($confirmed) {
+        case AUTH_CONFIRM_ALREADY:
+            // User already confirmed before.
+            $PAGE->navbar->add(get_string("alreadyconfirmed"));
+            $PAGE->set_title(get_string("alreadyconfirmed"));
+            $PAGE->set_heading($COURSE->fullname);
+            echo $OUTPUT->header();
+            echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
+            echo "<p>".get_string("alreadyconfirmed")."</p>\n";
+            echo $OUTPUT->single_button(core_login_get_return_url(), get_string('courses'));
+            echo $OUTPUT->box_end();
+            echo $OUTPUT->footer();
+            exit;
+        case AUTH_CONFIRM_OK:
+            $PAGE->navbar->add(get_string("confirmed"));
+            $PAGE->set_title(get_string("confirmed"));
+            $PAGE->set_heading($COURSE->fullname);
+            echo $OUTPUT->header();
+            echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
+            echo "<h3>".get_string("thanks").", ". fullname($USER) . "</h3>\n";
+            echo "<p>".get_string("confirmed")."</p>\n";
+            echo $OUTPUT->single_button(core_login_get_return_url(), get_string('continue'));
+            echo $OUTPUT->box_end();
+            echo $OUTPUT->footer();
+            exit;
+        case AUTH_CONFIRM_ERROR:
+            // Error while confirming.
+            // NOTE throw error.
+            debugging('Confirmation Error.');
+            redirect(new moodle_url('/login/index.php'), get_string('invalidconfirmdata', 'error'), null, 'error');
+            exit;
+        case AUTH_CONFIRM_FAIL:
+            // If AUTH_CONFIRM_FAIL means that the user not confirmed yet, go to part 2 of the code.
+            break;
+        default:
+            // Do nothing.
+    }
 }
 
 // Part 2 of the code.
