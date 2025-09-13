@@ -55,7 +55,7 @@ class auth_plugin_wallet extends auth_plugin_base {
      * @return bool Authentication success or failure.
      */
     public function user_login($username, $password) {
-        global $CFG, $DB;
+        global $DB;
 
         // Validate the login by using the Moodle user table.
         // Remove if a different authentication method is desired.

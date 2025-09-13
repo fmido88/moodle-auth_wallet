@@ -110,7 +110,7 @@ function auth_wallet_after_require_login() {
         $params['p'] = $USER->secret;
     }
 
-    $confirmationurl = new \moodle_url('/auth/wallet/confirm.php', $params);
+    $confirmationurl = new moodle_url('/auth/wallet/confirm.php', $params);
     redirect($confirmationurl);
 }
 
@@ -120,8 +120,6 @@ function auth_wallet_after_require_login() {
  * @return bool
  */
 function auth_wallet_should_redirect(moodle_url $url) {
-    global $CFG, $USER;
-    $wwwroot = new moodle_url($CFG->wwwroot);
     $paths = [
         'user/view.php', // Any editing or viewing for profile pages.
         'user/profile.php',
@@ -134,7 +132,7 @@ function auth_wallet_should_redirect(moodle_url $url) {
         'blocks/vc', // Vodafone cash & instapay block.
     ];
 
-    if ($wwwroot->get_host() !== $url->get_host()) {
+    if (!$url->is_local_url()) {
         // Any non local pages.
         return false;
     }
@@ -207,7 +205,7 @@ function auth_wallet_check_conditions($user) {
     }
 
     $required = $config->required_balance;
-    $op = new enrol_wallet\util\balance_op($user->id);
+    $op = new enrol_wallet\local\wallet\balance_op($user->id);
     $balance  = $op->get_total_balance();
     $method   = $config->criteria;
     $fee      = $config->required_fee;

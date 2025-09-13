@@ -24,7 +24,8 @@
 
 namespace auth_wallet\task;
 
-use enrol_wallet\util\balance;
+use enrol_wallet\local\config;
+use enrol_wallet\local\wallet\balance;
 /**
  * Clean up non-confirmed users.
  */
@@ -52,8 +53,10 @@ class nonconfirmed_cleanup extends \core\task\scheduled_task {
             return;
         }
 
-        $gift = get_config('enrol_wallet', 'newusergift');
-        $giftvalue = get_config('enrol_wallet', 'newusergiftvalue');
+        $config = config::make();
+
+        $gift      = $config->newusergift;
+        $giftvalue = $config->newusergiftvalue;
 
         $intval = $CFG->deleteunconfirmed * 60 * 60;
 

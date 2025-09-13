@@ -1,4 +1,6 @@
 <?php
+
+use enrol_wallet\output\topup_options;
 // This file is part of Moodle - http://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -81,7 +83,7 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
 
     $user = get_complete_user_data('username', $username);
     if (!$user || isguestuser($user)) {
-        throw new \moodle_exception('invalidconfirmdata', '', '', s($username));
+        throw new moodle_exception('invalidconfirmdata', '', '', s($username));
     }
 
     // Check confirmation validation.
@@ -95,7 +97,7 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
                 if (!isloggedin() || isguestuser() || $USER->id != $user->id) {
                     complete_user_login($user);
 
-                    \core\session\manager::apply_concurrent_login_limit($user->id, session_id());    
+                    core\session\manager::apply_concurrent_login_limit($user->id, session_id());    
                 }
 
                 // Check where to go, $redirect has a higher preference.
@@ -116,23 +118,29 @@ if ((!empty($p) && !empty($s)) || !empty($data)) {
             $PAGE->navbar->add(get_string("alreadyconfirmed"));
             $PAGE->set_title(get_string("alreadyconfirmed"));
             $PAGE->set_heading($COURSE->fullname);
+
             echo $OUTPUT->header();
+
             echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
             echo "<p>".get_string("alreadyconfirmed")."</p>\n";
             echo $OUTPUT->single_button(core_login_get_return_url(), get_string('courses'));
             echo $OUTPUT->box_end();
+
             echo $OUTPUT->footer();
             exit;
         case AUTH_CONFIRM_OK:
             $PAGE->navbar->add(get_string("confirmed"));
             $PAGE->set_title(get_string("confirmed"));
             $PAGE->set_heading($COURSE->fullname);
+
             echo $OUTPUT->header();
+
             echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
             echo "<h3>".get_string("thanks").", ". fullname($USER) . "</h3>\n";
             echo "<p>".get_string("confirmed")."</p>\n";
             echo $OUTPUT->single_button(core_login_get_return_url(), get_string('continue'));
             echo $OUTPUT->box_end();
+
             echo $OUTPUT->footer();
             exit;
         case AUTH_CONFIRM_ERROR:
@@ -202,14 +210,14 @@ if (!empty($user) && is_object($user) && !isguestuser($user)) {
                 }
                 $params['p'] = $user->secret;
                 $params['redirect'] = $redirect;
-                $url = new \moodle_url('/auth/wallet/confirm.php', $params);
+                $url = new moodle_url('/auth/wallet/confirm.php', $params);
             }
 
             // Login the user to enable payment.
             if (!isloggedin() || empty($user->id)) {
                 $user = complete_user_login($user);
 
-                \core\session\manager::apply_concurrent_login_limit($user->id, session_id());
+                core\session\manager::apply_concurrent_login_limit($user->id, session_id());
             }
 
             require_login(null, false);
@@ -226,16 +234,17 @@ if (!empty($user) && is_object($user) && !isguestuser($user)) {
                 echo $OUTPUT->header();
 
                 echo $OUTPUT->box_start('generalbox centerpara boxwidthnormal boxaligncenter');
-                $balance = (new enrol_wallet\util\balance($user->id))->get_total_balance();
+                $balance = (new enrol_wallet\local\wallet\balance($user->id))->get_total_balance();
                 $confirmmethod = get_config('auth_wallet', 'criteria');
 
                 $a = [
                     'balance'  => $balance,
-                    'currency' => get_config('enrol_wallet', 'currency'),
+                    'currency' => enrol_wallet\local\config::make()->currency,
                     'name'     => fullname($user),
                 ];
 
-                $confirmmethod = get_config('auth_wallet', 'criteria');
+                $renderer = enrol_wallet\output\helper::get_wallet_renderer();
+                $topupoption = $renderer->render(new topup_options());
 
                 if ($confirmmethod === 'balance') { // Minimum balance required.
                     $extrafee = get_config('auth_wallet', 'extra_fee');
@@ -243,7 +252,7 @@ if (!empty($user) && is_object($user) && !isguestuser($user)) {
                     $a['rest'] = ($a['required'] - $balance);
                     $a['extrafee'] = !empty($extrafee) ? get_string('extrafeerequired', 'auth_wallet', $extrafee) : '';
                     echo get_string('payment_required', 'auth_wallet', $a);
-                    echo enrol_wallet_display_topup_options();
+                    echo $topupoption;
 
                 } else if ($confirmmethod === 'fee') { // Signup fee reqired.
 
@@ -251,13 +260,13 @@ if (!empty($user) && is_object($user) && !isguestuser($user)) {
                     $a['rest'] = ($a['required'] - $balance);
 
                     echo get_string('fee_required', 'auth_wallet', $a);
-                    echo enrol_wallet_display_topup_options();
+                    echo $topupoption;
 
                 } else { // Shouldn't happen.
                     echo $OUTPUT->notification(get_string('settingerror', 'auth_wallet'), 'error', false);
                 }
 
-                $url = new \moodle_url('/auth/wallet/confirm.php', ['logout' => 1]);
+                $url = new moodle_url('/auth/wallet/confirm.php', ['logout' => 1]);
                 echo $OUTPUT->single_button($url, get_string('logout'));
 
                 echo $OUTPUT->box_end();
