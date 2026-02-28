@@ -37,13 +37,19 @@ $s        = optional_param('s', '', PARAM_RAW);        // Parameter: username.
 $data     = optional_param('data', '', PARAM_RAW);
 $redirect = optional_param('redirect', '', PARAM_URL);
 if (empty($redirect)) {
-    if (isset($SESSION->wantsurl)) {
-        $redirect = (new moodle_url($SESSION->wantsurl))->out(false);
+    if (!empty($SESSION->wantsurl)) {
+        $redirect = $SESSION->wantsurl;
     } else if ($base = get_user_preferences('auth_wallet_wantsurl', false)) {
-        $redirect = (new moodle_url($base))->out(false);
+        $redirect = $base;
     } else {
         $redirect = core_login_get_return_url();
     }
+}
+$redirect = new moodle_url($redirect);
+
+if ($postdata = optional_param('postdata', '', PARAM_RAW)) {
+    $postdata = json_decode(base64_encode($postdata), true);
+    $redirect->params($postdata);
 }
 
 // Logout button pressed.

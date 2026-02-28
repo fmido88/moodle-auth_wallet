@@ -93,7 +93,7 @@ function auth_wallet_after_require_login() {
         return;
     }
 
-    $currentpage = new moodle_url($FULLME);
+    $currentpage = new moodle_url(qualified_me());
     if (!auth_wallet_should_redirect($currentpage)) {
         return;
     }
@@ -108,6 +108,8 @@ function auth_wallet_after_require_login() {
             $DB->set_field('user', 'secret', $USER->secret, ['id' => $USER->id]);
         }
         $params['p'] = $USER->secret;
+        $params['redirect'] = qualified_me();
+        $params['postdata'] = base64_decode(json_encode($_POST));
     }
 
     $confirmationurl = new moodle_url('/auth/wallet/confirm.php', $params);
